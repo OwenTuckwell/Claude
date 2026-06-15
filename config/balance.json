@@ -1,0 +1,27 @@
+{
+  "$comment": "Tunable balance constants for Bannerfall. See docs/02-economy-and-balance.md.",
+  "tickLengthSec": 60,
+  "maxCatchUpTicks": 1440,
+  "foodPerCapitaPerTick": 0.15,
+  "baseTaxYieldPerCapita": 0.5,
+  "rationTable": { "half": 0.5, "normal": 1.0, "generous": 1.5, "double": 2.0 },
+  "rationHappiness": { "half": -4, "normal": 0, "generous": 4, "double": 8 },
+  "taxHappiness": [
+    { "rate": 0.0, "happiness": 2 },
+    { "rate": 0.1, "happiness": 0 },
+    { "rate": 0.2, "happiness": -3 },
+    { "rate": 0.3, "happiness": -6 },
+    { "rate": 0.4, "happiness": -8 },
+    { "rate": 0.5, "happiness": -12 },
+    { "rate": 0.6, "happiness": -16 }
+  ],
+  "popGrowthPerHappyPointPerTick": 0.002,
+  "popDeclinePerTick": 0.01,
+  "starvationDeclinePerTick": 0.05,
+  "crowdingPenaltyPerPctOver": 20,
+  "skeletonStaffing": 0.15,
+  "baseStorage": { "food": 400, "wood": 400, "stone": 300, "iron": 150, "gold": 100000, "rp": 100000 },
+  "startingResources": { "food": 200, "wood": 200, "stone": 100, "iron": 30, "gold": 50, "rp": 0 },
+  "startingPopulation": 18,
+  "buildTimeReductionCap": 0.6
+}

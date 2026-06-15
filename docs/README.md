@@ -44,6 +44,8 @@ These validate against the schemas in `03` and make the data-driven design tangi
 
 ## Status
 
-- **M0 (this):** design & architecture — complete.
-- **Next (M1):** TypeScript simulation core + React/canvas web slice, single-player vs.
-  AI. See `04-mvp-roadmap.md`.
+- **M0:** design & architecture — complete.
+- **M1:** TypeScript simulation core + React/canvas web slice, single-player vs. AI —
+  **playable** (see the repo root `README.md` to run it). Economy, happiness, research,
+  troops, and deterministic sieges are implemented with a passing sim test suite.
+- **Next (M2):** content breadth + balance pass. See `04-mvp-roadmap.md`.
