@@ -1,0 +1,157 @@
+{
+  "$comment": "Sample research nodes for Bannerfall. Conforms to the Research node schema in docs/03-technical-architecture.md. Effects use the shared typed-modifier vocabulary (also used by the [Later] card/boost system). Illustrative numbers; tuned in M2.",
+  "research": [
+    {
+      "id": "mining",
+      "name": "Mining",
+      "branch": "economy",
+      "maxRank": 3,
+      "rpCostBase": 40,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "unlock_building", "target": "iron_mine", "atRank": 1 },
+        { "type": "production_pct", "target": "iron_mine", "valuePerRank": 0.1 }
+      ]
+    },
+    {
+      "id": "better_ploughs",
+      "name": "Better Ploughs",
+      "branch": "economy",
+      "maxRank": 5,
+      "rpCostBase": 50,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": { "scholars_hall": 1 } },
+      "effects": [
+        { "type": "production_pct", "target": "farm", "valuePerRank": 0.08 }
+      ]
+    },
+    {
+      "id": "forestry",
+      "name": "Forestry",
+      "branch": "economy",
+      "maxRank": 5,
+      "rpCostBase": 50,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "production_pct", "target": "woodcutters_lodge", "valuePerRank": 0.08 }
+      ]
+    },
+    {
+      "id": "granary_keeping",
+      "name": "Granary Keeping",
+      "branch": "economy",
+      "maxRank": 4,
+      "rpCostBase": 60,
+      "rpCostGrowth": 1.7,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "storage_cap_pct", "target": "food", "valuePerRank": 0.15 }
+      ]
+    },
+    {
+      "id": "taxation",
+      "name": "Taxation",
+      "branch": "economy",
+      "maxRank": 4,
+      "rpCostBase": 70,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "tax_yield_pct", "target": "gold", "valuePerRank": 0.1 }
+      ]
+    },
+    {
+      "id": "sanitation",
+      "name": "Sanitation",
+      "branch": "economy",
+      "maxRank": 3,
+      "rpCostBase": 80,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": { "chapel": 1 } },
+      "effects": [
+        { "type": "happiness_flat", "target": "global", "valuePerRank": 2 }
+      ]
+    },
+    {
+      "id": "masonry",
+      "name": "Masonry",
+      "branch": "construction",
+      "maxRank": 3,
+      "rpCostBase": 90,
+      "rpCostGrowth": 1.9,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "unlock_building", "target": "wall", "atRank": 1 },
+        { "type": "unlock_building", "target": "tower", "atRank": 2 },
+        { "type": "defense_health_pct", "target": "fortification", "valuePerRank": 0.1 }
+      ]
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "branch": "construction",
+      "maxRank": 5,
+      "rpCostBase": 70,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [{ "id": "masonry", "rank": 1 }], "buildingLevels": {} },
+      "effects": [
+        { "type": "build_time_pct", "target": "global", "valuePerRank": -0.06 }
+      ]
+    },
+    {
+      "id": "militia",
+      "name": "Militia",
+      "branch": "military",
+      "maxRank": 1,
+      "rpCostBase": 60,
+      "rpCostGrowth": 1.0,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "unlock_building", "target": "barracks", "atRank": 1 },
+        { "type": "unlock_troop", "target": "spearman", "atRank": 1 }
+      ]
+    },
+    {
+      "id": "archery",
+      "name": "Archery",
+      "branch": "military",
+      "maxRank": 4,
+      "rpCostBase": 80,
+      "rpCostGrowth": 1.85,
+      "requires": { "research": [{ "id": "militia", "rank": 1 }], "buildingLevels": {} },
+      "effects": [
+        { "type": "unlock_building", "target": "archery_range", "atRank": 1 },
+        { "type": "unlock_troop", "target": "archer", "atRank": 1 },
+        { "type": "troop_stat_pct", "target": "archer", "stat": "attack", "valuePerRank": 0.07 }
+      ]
+    },
+    {
+      "id": "siegecraft",
+      "name": "Siegecraft",
+      "branch": "military",
+      "maxRank": 3,
+      "rpCostBase": 150,
+      "rpCostGrowth": 1.9,
+      "requires": { "research": [{ "id": "archery", "rank": 1 }, { "id": "engineering", "rank": 1 }], "buildingLevels": {} },
+      "effects": [
+        { "type": "unlock_troop", "target": "catapult", "atRank": 1 },
+        { "type": "troop_stat_pct", "target": "catapult", "stat": "attack", "valuePerRank": 0.1 }
+      ]
+    },
+    {
+      "id": "cartography",
+      "name": "Cartography",
+      "branch": "logistics",
+      "maxRank": 3,
+      "rpCostBase": 90,
+      "rpCostGrowth": 1.8,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "march_speed_pct", "target": "global", "valuePerRank": 0.1 },
+        { "type": "scout_vision_flat", "target": "global", "valuePerRank": 1 }
+      ]
+    }
+  ]
+}

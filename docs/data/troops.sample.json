@@ -1,0 +1,72 @@
+{
+  "$comment": "Sample troop content for Bannerfall. Conforms to the Troop schema in docs/03-technical-architecture.md. Roles form a soft counter triangle (spear>cavalry, cavalry>archer, archer>spear from range) plus siege vs. fortifications. Illustrative numbers; tuned in M2.",
+  "troops": [
+    {
+      "id": "spearman",
+      "name": "Spearman",
+      "role": "infantry",
+      "attack": 8,
+      "defense": 10,
+      "health": 30,
+      "counters": ["cavalry"],
+      "cost": { "wood": 8, "iron": 4, "gold": 3 },
+      "upkeep": { "gold": 0.015, "food": 0.05 },
+      "trainTimeSec": 75,
+      "requires": { "buildings": { "barracks": 1 }, "research": [{ "id": "militia", "rank": 1 }] }
+    },
+    {
+      "id": "swordsman",
+      "name": "Swordsman",
+      "role": "infantry",
+      "attack": 14,
+      "defense": 12,
+      "health": 36,
+      "counters": [],
+      "cost": { "wood": 6, "iron": 12, "gold": 6 },
+      "upkeep": { "gold": 0.025, "food": 0.06 },
+      "trainTimeSec": 120,
+      "requires": { "buildings": { "barracks": 2 }, "research": [{ "id": "militia", "rank": 1 }] }
+    },
+    {
+      "id": "archer",
+      "name": "Archer",
+      "role": "ranged",
+      "attack": 12,
+      "defense": 4,
+      "health": 20,
+      "counters": ["infantry"],
+      "rangedFromTower": true,
+      "cost": { "wood": 10, "iron": 5, "gold": 5 },
+      "upkeep": { "gold": 0.02, "food": 0.05 },
+      "trainTimeSec": 90,
+      "requires": { "buildings": { "archery_range": 1 }, "research": [{ "id": "archery", "rank": 1 }] }
+    },
+    {
+      "id": "horseman",
+      "name": "Horseman",
+      "role": "cavalry",
+      "attack": 16,
+      "defense": 8,
+      "health": 40,
+      "counters": ["ranged"],
+      "cost": { "wood": 4, "iron": 14, "gold": 12 },
+      "upkeep": { "gold": 0.04, "food": 0.1 },
+      "trainTimeSec": 180,
+      "requires": { "buildings": { "barracks": 3 }, "research": [{ "id": "militia", "rank": 1 }] }
+    },
+    {
+      "id": "catapult",
+      "name": "Catapult",
+      "role": "siege",
+      "attack": 40,
+      "defense": 2,
+      "health": 60,
+      "bonusVsFortification": 3.0,
+      "counters": ["fortification"],
+      "cost": { "wood": 60, "iron": 40, "gold": 20 },
+      "upkeep": { "gold": 0.06, "food": 0.05 },
+      "trainTimeSec": 600,
+      "requires": { "buildings": { "siege_workshop": 1 }, "research": [{ "id": "siegecraft", "rank": 1 }] }
+    }
+  ]
+}
