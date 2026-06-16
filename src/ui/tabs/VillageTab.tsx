@@ -59,6 +59,10 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
             <path d="M50,50 C58,62 70,72 84,84" stroke="#b9a06a" strokeWidth="3" fill="none" opacity="0.6" />
           </svg>
 
+          <div className="cloud" style={{ top: "12%", animationDelay: "0s" }}>☁️</div>
+          <div className="cloud" style={{ top: "30%", animationDelay: "-18s", fontSize: 20 }}>☁️</div>
+          <div className="cloud" style={{ top: "6%", animationDelay: "-32s", fontSize: 30 }}>☁️</div>
+
           {/* central keep */}
           <div className="keep" title="Your keep">
             <div className="keep-ic">🏰</div>

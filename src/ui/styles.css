@@ -46,9 +46,13 @@ body {
 .scene { position: relative; width: 100%; height: 340px; overflow: hidden; }
 .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .keep { position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%); text-align: center; z-index: 2; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4)); }
-.keep-ic { font-size: 46px; line-height: 1; }
+.keep-ic { font-size: 46px; line-height: 1; display: inline-block; animation: sway 5s ease-in-out infinite; transform-origin: bottom center; }
+@keyframes sway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+.cloud { position: absolute; left: -15%; z-index: 1; opacity: 0.85; animation: drift 46s linear infinite; pointer-events: none; }
+@keyframes drift { from { left: -15%; } to { left: 115%; } }
 .hut { position: absolute; transform: translate(-50%, -50%); background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 2px; border-radius: 8px; }
-.hut .hut-ic { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.45)); }
+.hut .hut-ic { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.45)); display: inline-block; animation: ibob 4.5s ease-in-out infinite; }
+@keyframes ibob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 .hut .hut-lv { margin-top: -4px; font-size: 9px; font-weight: 800; color: #2a1f10; background: var(--gold); border-radius: 99px; padding: 0 5px; }
 .hut.sel { background: rgba(216,178,90,0.25); outline: 2px solid var(--gold); }
 .hut.busy::after { content: "⏳"; position: absolute; top: -8px; right: -8px; font-size: 12px; }
@@ -121,10 +125,17 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 .rnode.wait { opacity: 0.92; cursor: not-allowed; }
 
 /* realm map markers (overlaid on the SVG) */
-.keep-mark { position: absolute; transform: translate(-50%, -50%); font-size: 16px; line-height: 1; cursor: pointer; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
-.keep-mark.me { cursor: default; font-size: 19px; }
+.realm-svg { background: linear-gradient(135deg, #1c3e64, #2b5483, #1f476f); background-size: 220% 220%; animation: sea 14s ease-in-out infinite; }
+@keyframes sea { 0%,100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
+.keep-mark { position: absolute; transform: translate(-50%, -50%); font-size: 16px; line-height: 1; cursor: pointer; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); transition: opacity 0.4s; }
+.keep-mark.me { cursor: default; font-size: 20px; animation: bob 3.5s ease-in-out infinite; }
 .keep-mark.looted { opacity: 0.4; }
 .keep-mark.sel { outline: 2px solid var(--gold); border-radius: 6px; background: rgba(216,178,90,0.25); }
+.march-mark { position: absolute; transform: translate(-50%, -50%); font-size: 13px; z-index: 3; pointer-events: none;
+  transition: left 6.6s linear, top 6.6s linear; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)); }
+.march-mark::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 6px 2px rgba(245,227,160,0.5); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+@keyframes bob { 0%,100% { transform: translate(-50%, -50%); } 50% { transform: translate(-50%, -58%); } }
 
 .num { width: 54px; }
 .foot { text-align: center; font-size: 11px; color: var(--muted); padding: 8px; }

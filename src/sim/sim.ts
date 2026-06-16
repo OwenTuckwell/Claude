@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 const MAX_BUILD_SLOTS = 2;
 const BASE_MARCH_TILES_PER_TICK = 0.5;
 

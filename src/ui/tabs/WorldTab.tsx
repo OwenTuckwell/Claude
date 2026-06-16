@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { world, troopById, balance, factionById } from "../../sim/content";
+import { world, aiById, troopById, balance, factionById } from "../../sim/content";
 import { scoutTravelTicks } from "../../sim/sim";
 import { defenderForTile, realmInfo, key as tileKey } from "../../sim/territory";
 import { computeModifiers } from "../../sim/effects";
@@ -42,7 +42,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
         <h3>The realm</h3>
         <div className="realm-wrap" style={{ position: "relative" }}>
           <svg className="realm-svg" width={w * 20} height={h * 20} viewBox={`0 0 ${w} ${h}`}
-            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8, background: "#21466e" }}>
+            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}>
             {Array.from({ length: w * h }, (_, i) => {
               const x = i % w, y = Math.floor(i / w);
               if (!isLand(x, y)) return null;
@@ -64,6 +64,18 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
                 {m.player ? "🏰" : m.difficulty >= 3 ? "🛡️" : "⚔️"}
               </div>
             );
+          })}
+          {/* armies marching across the realm (glide via CSS transition each tick) */}
+          {state.marches.map((m) => {
+            const dest = m.kind === "conquer" ? m.targetTile : m.kind === "assault" ? aiById[m.targetId]?.tile : null;
+            if (!dest) return null;
+            const origin = world.player.tile;
+            const prog = Math.max(0, Math.min(1, 1 - Math.max(0, m.arriveTick - state.tick) / m.travelTicks));
+            const from = m.phase === "outbound" ? origin : dest;
+            const to = m.phase === "outbound" ? dest : origin;
+            const px = ((from.x + (to.x - from.x) * prog + 0.5) / w) * 100;
+            const py = ((from.y + (to.y - from.y) * prog + 0.5) / h) * 100;
+            return <div key={m.id} className="march-mark" style={{ left: `${px}%`, top: `${py}%` }}>{m.kind === "conquer" ? "🚩" : "⚔️"}</div>;
           })}
         </div>
         <div className="muted" style={{ marginTop: 6 }}>Tap any land tile to inspect it. Coloured = owned by a faction; green = unclaimed. Take land by marching an army onto it.</div>
