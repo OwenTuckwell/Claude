@@ -271,3 +271,94 @@ contained in the sim core — then **Phase 2 (fog of war)**, which pairs natural
 3. Start Phase 1A: extend `GameState` with AI economy state + bump save version, then
    grow `aiTurn` in `src/sim/territory.ts`. Add golden-state tests alongside.
 4. Keep all logic in `src/sim`; UI changes only read state / emit commands.
+
+---
+
+# Appendix A — Castle content draft (Phase 3)
+
+Concrete first-pass content for the castle screen + Castellany research, aligned to the
+existing JSON schema (see `content/buildings.json`, `content/research.json`). Numbers are
+**starting points to balance**, not final. The existing `wall`/`tower`/`watchtower`
+fortifications fold into this set.
+
+## A.1 Castle buildings
+
+Proposed new `category: "castle"` (or extend `"fortification"`). `defense.health` feeds
+the siege resolver; `defense.garrisonSlots` = ranged troops that can man it.
+
+| id | name | role | key fields (draft) |
+|---|---|---|---|
+| `keep` | The Keep | Heart of the castle; its level gates other castle buildings & sets max layout size | high `defense.health`; `requires` village level; unlocks castle tab |
+| `palisade` | Timber Palisade | Cheap tier-1 wall (early game) | low `defense.health`; wood cost; pre-masonry |
+| `wall` | Stone Curtain Wall | Tier-2 wall *(exists)* | `defense.health` 200; stone; `masonry` r1 |
+| `concentric_wall` | Concentric Walls | Tier-3 double ring; big breach resistance | high health; `concentric_design` research |
+| `gatehouse` | Gatehouse | Defended entry; weak point if breached | health + small garrison; controls a breach lane |
+| `barbican` | Barbican | Forward gate defense; slows attackers at the gate | adds delay/damage to gate assaults |
+| `tower` | Defensive Tower | Garrisonable ranged platform *(exists)* | health 350, garrisonSlots 4 |
+| `watchtower` | Great Watchtower | Bigger tower *(exists)* + vision bonus | health 480, garrisonSlots 6; ties to scouting vision |
+| `artillery_tower` | Artillery Tower | Late tower mounting siege weapons vs attackers | high health; bonus damage to attacker siege engines |
+| `moat` | Moat | Slows/damages attackers before the walls | layout modifier; no garrison |
+| `drawbridge` | Drawbridge | Pairs with moat/gate; raises to deny a lane | toggles a gate lane during siege |
+| `traps` | Traps & Murder Holes | One-shot attrition on attackers in a lane | per-lane damage; consumed/rebuilt |
+| `garrison_hall` | Garrison Hall | Raises total garrison capacity | `+garrison capacity` (support, not a wall) |
+| `armoury` | Armoury | Boosts defending troop stats during a siege | troop stat % while defending |
+| `castle_smithy` | Castle Smithy | Speeds fortification repair & build | repair/build-time reduction |
+| `granary_store` | Siege Stores | Hold-out duration under siege (supply) | extends how long you resist before attrition |
+| `great_hall` | Great Hall | Civic/influence + happiness from prestige | influence (Phase 4 politics) + happiness |
+| `dungeon` | Dungeon | Fear/benevolence dial (`01 §3`); minor output vs happiness | trades happiness for an output/defense edge |
+
+**Layout rule:** walls/towers/gates/moat/traps occupy the castle grid and define **breach
+lanes** the attacker must fight through; support buildings (garrison hall, armoury, smithy,
+stores) buff but don't occupy defensive lanes.
+
+## A.2 Castellany research branch(es)
+
+New `branch: "castellany"` (plus offense-side `siege_engineering`). Effects reuse the
+typed-effect system; add new effect `type`s where noted.
+
+**Fortification tiers**
+| id | name | effect (per rank, draft) |
+|---|---|---|
+| `timber_framing` | Timber Framing | unlock `palisade`; +% palisade health |
+| `masonry` | Masonry *(exists)* | unlock `wall`/`tower`; +% wall health |
+| `architecture` | Architecture *(exists)* | unlock `watchtower`; +% tower health |
+| `ashlar_masonry` | Ashlar Masonry | +% all wall/tower health |
+| `concentric_design` | Concentric Design | unlock `concentric_wall` |
+| `machicolations` | Machicolations | towers deal +% damage to attackers below |
+
+**Castellany / garrison**
+| id | name | effect (per rank, draft) |
+|---|---|---|
+| `arrow_slits` | Arrow Slits | +% garrison ranged damage from towers |
+| `garrison_drills` | Garrison Drills | +garrison capacity |
+| `sortie_tactics` | Sortie Tactics | defenders can sally to damage attacker siege engines |
+| `tower_artillery` | Tower Artillery | unlock `artillery_tower`; +damage vs siege engines |
+
+**Defense operations**
+| id | name | effect (per rank, draft) |
+|---|---|---|
+| `rapid_repair` | Rapid Repair | +% fortification repair speed (also post-siege) |
+| `siege_provisioning` | Siege Provisioning | +% hold-out duration (works with `granary_store`) |
+| `counter_mining` | Counter-Mining | reduces attacker sapping/wall-breach effectiveness |
+
+**Siege engineering (offense — for attacking enemy castles, ties to Phase 1)**
+| id | name | effect (per rank, draft) |
+|---|---|---|
+| `improved_rams` | Improved Rams | +% ram damage vs gates |
+| `trebuchet_design` | Trebuchet Design | unlock/boost trebuchet vs walls |
+| `siege_towers` | Siege Towers | bypass a wall tier; reduce approach casualties |
+| `sapping` | Sapping | chance to collapse a wall section pre-assault |
+
+## A.3 New typed effects likely needed
+`unlock_building` / `unlock_troop` already exist. Probable additions:
+`garrison_capacity_flat`, `repair_speed_pct`, `holdout_duration_pct`,
+`fort_health_pct` (target = a fortification id or "all"), `siege_engine_dmg_pct`,
+`tower_ranged_dmg_pct`. Add to the `Modifiers` shape in `src/sim/effects.ts` + the effect
+`type` union in `src/sim/types.ts` when Phase 3 is built.
+
+## A.4 Open balance questions (decide before building)
+- Does the castle share the village build queue or get its own?
+- Is garrison drawn from the same troop pool as your field army (forces allocation) — or
+  a separate "garrison" pool?
+- Grid size: fixed, or does `keep` level expand the buildable castle area?
+- Repair: automatic over time, or a player action costing resources?
