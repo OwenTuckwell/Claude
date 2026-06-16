@@ -116,6 +116,16 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 .mcell.ai.looted { opacity: 0.4; }
 .mcell.sel { outline: 2px solid var(--gold); outline-offset: -2px; z-index: 1; }
 
+/* castle screen */
+.castle { background: linear-gradient(#6f8246, #5f6f3c); border: 1px solid var(--line); border-radius: 10px; padding: 16px 8px 12px; }
+.castle-keep { font-size: 52px; line-height: 1; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4)); animation: sway 5s ease-in-out infinite; transform-origin: bottom center; display: inline-block; }
+.battlement { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+.fort { background: rgba(46,38,32,0.18); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+.fort.sel { outline: 2px solid var(--gold); }
+.fort.busy::after { content: "⏳"; font-size: 10px; }
+.fort-ic { font-size: 24px; line-height: 1; }
+.fort-lv { font-size: 9px; font-weight: 800; color: var(--gold); }
+
 /* research tree */
 .rtree { position: relative; }
 .rlines { position: absolute; top: 0; left: 0; pointer-events: none; }

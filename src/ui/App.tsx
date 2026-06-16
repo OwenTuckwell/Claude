@@ -7,17 +7,19 @@ import { exportSave, importSave, resetSave } from "../host/persistence";
 import { useGame } from "./useGame";
 import { fmt, fmtRate, RESOURCE_META } from "./format";
 import { VillageTab } from "./tabs/VillageTab";
+import { CastleTab } from "./tabs/CastleTab";
 import { MarketTab } from "./tabs/MarketTab";
 import { ResearchTab } from "./tabs/ResearchTab";
 import { MilitaryTab } from "./tabs/MilitaryTab";
 import { WorldTab } from "./tabs/WorldTab";
 import { ChronicleTab } from "./tabs/ChronicleTab";
 
-type Tab = "village" | "market" | "research" | "military" | "world" | "chronicle";
+type Tab = "village" | "castle" | "market" | "research" | "military" | "world" | "chronicle";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "village", label: "🏰 Village" },
+  { id: "village", label: "🛖 Village" },
+  { id: "castle", label: "🏰 Castle" },
   { id: "market", label: "🎟️ Market" },
-  { id: "research", label: "📜 Research" },
+  { id: "research", label: "📜 Tech" },
   { id: "military", label: "⚔️ Army" },
   { id: "world", label: "🗺️ World" },
   { id: "chronicle", label: "📖 Log" },
@@ -75,6 +77,7 @@ export function App() {
 
       <div className="content">
         {tab === "village" && <VillageTab state={state} mods={mods} dispatch={dispatch} />}
+        {tab === "castle" && <CastleTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "market" && <MarketTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "research" && <ResearchTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "military" && <MilitaryTab state={state} mods={mods} dispatch={dispatch} />}

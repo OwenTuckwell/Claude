@@ -5,26 +5,26 @@ another machine. Read this first when you come back.
 
 ## Status: DESIGN complete, BUILD just started
 
-Today was a **planning** session. The full design for taking *Bannerfall* "BIG" is written
-and pushed. Only **one** feature has actually been *built* into the game so far — the new
-colour palette. Everything else is **designed on paper, not yet coded.** That's by design
-(we agreed: plan first, build later).
+The design for taking *Bannerfall* "BIG" is written and pushed. A **build session** then
+shipped Phases 1–3 plus the world-scaling work. Table below reflects what's actually live.
 
 ### Plan vs. Built
-| Thing | Designed & pushed? | Built into the game? | Where it's specced |
+| Thing | Designed? | Built & live? | Where it's specced |
 |---|---|---|---|
-| New colour palette (parchment/earthy) | ✅ | ✅ **live on the site** | `art-style.md` |
-| Home **castle** development screen | ✅ | ❌ not coded | Appendix A, L |
-| **Bigger map** + more opponents | ✅ | ❌ not coded | Appendix D, E, N |
-| Scaling **AI** rivals | ✅ | ❌ not coded | Appendix B, C, I |
-| **Fog of war** / scouting | ✅ | ❌ not coded | Appendix G |
+| New colour palette (parchment/earthy) | ✅ | ✅ | `art-style.md` |
+| **Bigger map** + more opponents (38×54, ~736 tiles, 20 rivals) | ✅ | ✅ | Appendix D, E, N |
+| **Border-based travel** + realm **slowdown** (upkeep/sprawl/scaling defenders) | ✅ | ✅ | D/E + roadmap |
+| Scaling **AI** rivals — archetypes (turtle/aggressor/economic) + rubber-band | ✅ | ✅ | Appendix B, C, I |
+| **Fog of war** / scouting (intel levels, scout-a-tile, fuzzed intel) | ✅ | ✅ | Appendix G |
+| Home **castle** development screen (defence rating + fortifications) | ✅ | ✅ (first pass) | Appendix A, L |
 | Tap/market scaling | ✅ | ❌ not coded | Appendix J |
-| Research-tree cleanup | ✅ | ❌ not coded | Appendix K |
+| Research-tree cleanup | ✅ | partial (tree built, not re-tiered) | Appendix K |
 | Prestige / politics / boosts | ✅ | ❌ not coded | Appendix M |
 | Onboarding, save migration, balance harness | ✅ | ❌ not coded | Appendix O, P, Q |
 
-> So "the map is still small / no castle" is expected — those are **build tasks**, waiting
-> in the checklist below. Nothing is missing; the building simply hasn't happened yet.
+> Castle is a **first pass** (defence view + fortification building). The deeper castle
+> from Appendix A (separate `castleQueue`, keep-gated grid, Castellany research branch) is
+> still to do. Save schema is at **v6**.
 
 ## The plan, in one place
 - **`docs/05-scaling-roadmap.md`** — 7 phases + 18 appendices (A–R). Start at the
