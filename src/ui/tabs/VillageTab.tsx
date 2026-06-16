@@ -8,6 +8,17 @@ import type { BuildingDef } from "../../sim/types";
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military", "fortification"] as const;
 
+// Organic scatter of plots around the central keep (percentage coords).
+const SLOTS = [
+  { x: 30, y: 28 }, { x: 50, y: 20 }, { x: 70, y: 28 },
+  { x: 18, y: 42 }, { x: 82, y: 42 },
+  { x: 32, y: 62 }, { x: 50, y: 70 }, { x: 68, y: 62 },
+  { x: 14, y: 62 }, { x: 86, y: 62 },
+  { x: 38, y: 44 }, { x: 62, y: 44 },
+  { x: 24, y: 80 }, { x: 50, y: 88 }, { x: 76, y: 80 },
+  { x: 40, y: 14 }, { x: 60, y: 14 }, { x: 12, y: 30 }, { x: 88, y: 30 },
+];
+
 export function VillageTab({ state, mods, dispatch }: TabProps) {
   const [sel, setSel] = useState<number | null>(null);
   const [building, setBuilding] = useState(false);
@@ -38,21 +49,36 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
         </div>
       )}
 
-      <div className="card">
-        <h3>Your village</h3>
-        <div className="village-grid">
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="scene">
+          <svg className="scene-bg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <rect width="100" height="100" fill="#4a6b2e" />
+            <path d="M0,70 Q25,60 50,72 T100,68 L100,100 L0,100 Z" fill="#43622a" />
+            <path d="M-5,40 Q30,48 55,38 Q80,30 105,44" stroke="#3a78a8" strokeWidth="5" fill="none" opacity="0.8" />
+            <path d="M50,50 C46,64 40,78 28,94" stroke="#b9a06a" strokeWidth="3" fill="none" opacity="0.6" />
+            <path d="M50,50 C58,62 70,72 84,84" stroke="#b9a06a" strokeWidth="3" fill="none" opacity="0.6" />
+          </svg>
+
+          {/* central keep */}
+          <div className="keep" title="Your keep">
+            <div className="keep-ic">🏰</div>
+          </div>
+
           {state.buildings.map((inst, idx) => {
-            const def = buildingById[inst.id];
+            const slot = SLOTS[idx % SLOTS.length];
             return (
-              <div key={idx} className={"vtile" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
+              <button key={idx} className={"hut" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
+                style={{ left: slot.x + "%", top: slot.y + "%" }}
                 onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-                <div className="vic">{BUILDING_ICONS[inst.id] ?? "🏠"}</div>
-                <div className="vnm">{def.name}</div>
-                <div className="vlv">L{inst.level}</div>
-              </div>
+                <span className="hut-ic">{BUILDING_ICONS[inst.id] ?? "🏠"}</span>
+                <span className="hut-lv">{inst.level}</span>
+              </button>
             );
           })}
-          <div className="vtile empty" onClick={() => { setBuilding(true); setSel(null); }}>＋</div>
+        </div>
+        <div className="row" style={{ padding: "8px 10px" }}>
+          <span className="muted">Tap a building to inspect or upgrade it.</span>
+          <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
         </div>
       </div>
 

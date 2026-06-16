@@ -13,6 +13,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   const [army, setArmy] = useState<Record<string, number>>({});
   const { w, h } = world.gridSize;
   const aiAt = new Map(world.aiVillages.map((v) => [`${v.tile.x},${v.tile.y}`, v]));
+  const isLand = (x: number, y: number) => world.land[y]?.[x] === "#";
 
   const village = sel ? aiById[sel] : null;
   const garrison = Object.entries(state.troops).filter(([, c]) => c > 0);
@@ -20,24 +21,27 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   return (
     <div className="list">
       <div className="card">
-        <h3>The region</h3>
-        <div className="map" style={{ gridTemplateColumns: `repeat(${w}, 1fr)` }}>
+        <h3>The realm</h3>
+        <div className="map sea-map" style={{ gridTemplateColumns: `repeat(${w}, 1fr)` }}>
           {Array.from({ length: w * h }, (_, i) => {
             const x = i % w, y = Math.floor(i / w);
+            const land = isLand(x, y);
             const isPlayer = x === world.player.tile.x && y === world.player.tile.y;
             const ai = aiAt.get(`${x},${y}`);
             const looted = ai ? state.tick < state.aiState[ai.id].lootedUntilTick : false;
+            // light coast shading: land tile next to sea
+            const coast = land && (!isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1));
             return (
               <div key={i}
-                className={"cell" + (isPlayer ? " player" : "") + (ai ? " ai" : "") + (looted ? " looted" : "")}
-                title={ai?.name ?? (isPlayer ? "Your village" : "")}
+                className={"mcell " + (land ? "land" : "water") + (coast ? " coast" : "") + (ai ? " ai" : "") + (looted ? " looted" : "") + (sel && ai?.id === sel ? " sel" : "")}
+                title={ai?.name ?? (isPlayer ? "Your realm" : "")}
                 onClick={() => ai && setSel(ai.id)}>
-                {isPlayer ? "🏰" : ai ? "⚔️" : ""}
+                {isPlayer ? "🏰" : ai ? (ai.difficulty >= 3 ? "🛡️" : "⚔️") : ""}
               </div>
             );
           })}
         </div>
-        <div className="muted" style={{ marginTop: 6 }}>Tap a 🏴 keep to plan an assault. Faded keeps were recently looted (regrowing).</div>
+        <div className="muted" style={{ marginTop: 6 }}>🏰 your realm · ⚔️/🛡️ enemy keeps (🛡️ = strongest). Tap a keep to plan an assault; faded keeps were recently looted.</div>
       </div>
 
       {village && (

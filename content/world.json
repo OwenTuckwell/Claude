@@ -1,12 +1,38 @@
 {
-  "$comment": "Single-player world for the M1 slice: the player's village plus AI neighbours to scout, raid, and besiege. Coordinates are tile positions on a small region grid; the same structure becomes a subset of the shared MMO world later (docs/03 §8).",
-  "gridSize": { "w": 12, "h": 12 },
-  "player": { "tile": { "x": 6, "y": 6 } },
+  "$comment": "Single-player world for Bannerfall. The land mask is a stylised Great Britain silhouette ('#' = land, '.' = sea); the player and AI keeps sit on land tiles. Same structure becomes a subset of the shared MMO world later (docs/03 §8).",
+  "gridSize": { "w": 16, "h": 24 },
+  "land": [
+    "......##........",
+    ".....###........",
+    "....####........",
+    "....####........",
+    ".....####.......",
+    ".....####.......",
+    "....#####.......",
+    "...######.......",
+    "...######.......",
+    "..#######.......",
+    "..########......",
+    "..########......",
+    "...#######......",
+    "...########.....",
+    "..#########.....",
+    "..##########....",
+    ".###########....",
+    ".###########....",
+    "..##########....",
+    "...########.....",
+    ".#####.#####....",
+    "##.....####.....",
+    ".........##.....",
+    "................"
+  ],
+  "player": { "tile": { "x": 5, "y": 16 } },
   "aiVillages": [
     {
       "id": "ai_brookmere",
       "name": "Brookmere",
-      "tile": { "x": 4, "y": 3 },
+      "tile": { "x": 7, "y": 14 },
       "difficulty": 1,
       "loot": { "food": 120, "wood": 150, "stone": 60, "iron": 20, "gold": 40 },
       "garrison": [{ "troop": "spearman", "count": 6 }, { "troop": "archer", "count": 4 }],
@@ -14,9 +40,19 @@
       "regrowTicks": 720
     },
     {
+      "id": "ai_southport",
+      "name": "Southport",
+      "tile": { "x": 9, "y": 18 },
+      "difficulty": 1,
+      "loot": { "food": 140, "wood": 130, "stone": 80, "iron": 25, "gold": 50 },
+      "garrison": [{ "troop": "spearman", "count": 8 }, { "troop": "archer", "count": 5 }],
+      "fortifications": [{ "building": "wall", "level": 1 }],
+      "regrowTicks": 720
+    },
+    {
       "id": "ai_dunhollow",
       "name": "Dunhollow",
-      "tile": { "x": 9, "y": 4 },
+      "tile": { "x": 4, "y": 11 },
       "difficulty": 2,
       "loot": { "food": 200, "wood": 220, "stone": 160, "iron": 60, "gold": 90 },
       "garrison": [{ "troop": "spearman", "count": 10 }, { "troop": "archer", "count": 8 }, { "troop": "swordsman", "count": 4 }],
@@ -24,14 +60,34 @@
       "regrowTicks": 1080
     },
     {
+      "id": "ai_eastmarch",
+      "name": "Eastmarch",
+      "tile": { "x": 10, "y": 15 },
+      "difficulty": 2,
+      "loot": { "food": 230, "wood": 200, "stone": 180, "iron": 70, "gold": 110 },
+      "garrison": [{ "troop": "spearman", "count": 12 }, { "troop": "archer", "count": 9 }, { "troop": "swordsman", "count": 5 }, { "troop": "horseman", "count": 3 }],
+      "fortifications": [{ "building": "wall", "level": 2 }, { "building": "tower", "level": 1 }],
+      "regrowTicks": 1080
+    },
+    {
       "id": "ai_greyfen",
       "name": "Greyfen Keep",
-      "tile": { "x": 3, "y": 9 },
+      "tile": { "x": 5, "y": 5 },
       "difficulty": 3,
       "loot": { "food": 350, "wood": 300, "stone": 320, "iron": 140, "gold": 220 },
       "garrison": [{ "troop": "spearman", "count": 18 }, { "troop": "archer", "count": 16 }, { "troop": "swordsman", "count": 10 }, { "troop": "horseman", "count": 6 }],
       "fortifications": [{ "building": "wall", "level": 3 }, { "building": "tower", "level": 2 }],
       "regrowTicks": 2160
+    },
+    {
+      "id": "ai_highfort",
+      "name": "Highfort",
+      "tile": { "x": 6, "y": 1 },
+      "difficulty": 3,
+      "loot": { "food": 420, "wood": 360, "stone": 380, "iron": 180, "gold": 280 },
+      "garrison": [{ "troop": "spearman", "count": 22 }, { "troop": "archer", "count": 20 }, { "troop": "swordsman", "count": 14 }, { "troop": "horseman", "count": 8 }],
+      "fortifications": [{ "building": "wall", "level": 3 }, { "building": "tower", "level": 3 }],
+      "regrowTicks": 2880
     }
   ]
 }

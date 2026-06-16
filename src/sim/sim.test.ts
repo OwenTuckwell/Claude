@@ -99,7 +99,7 @@ describe("market & scouting", () => {
     let s: GameState = { ...fresh(), resources: { ...createInitialState(777).resources, token: 50 } };
     const r = applyCommand(s, { type: "buy", resource: "wood", amount: 10 });
     expect(r.result.ok).toBe(true);
-    expect(r.state.resources.token).toBe(40);
+    expect(r.state.resources.token).toBe(25); // 10 wood @ 2.5 tokens each
     expect(r.state.resources.wood).toBe(s.resources.wood + 10);
     s = r.state;
     expect(applyCommand(s, { type: "buy", resource: "iron", amount: 1000 }).result.ok).toBe(false);

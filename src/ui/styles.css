@@ -42,15 +42,17 @@ body {
 .tabs button { flex: 1; background: none; border: none; color: var(--muted); padding: 9px 2px; font-size: 10.5px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; overflow: hidden; }
 .tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
 
-/* village view */
-.village-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.vtile { aspect-ratio: 1; background: linear-gradient(#3a4a26, #2c3a1d); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; }
-.vtile.sel { outline: 2px solid var(--gold); }
-.vtile .vic { font-size: 26px; line-height: 1; }
-.vtile .vlv { position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: var(--gold); font-weight: 700; }
-.vtile .vnm { font-size: 8.5px; color: var(--ink); margin-top: 2px; text-align: center; }
-.vtile.empty { background: #2a2317; border-style: dashed; color: var(--muted); font-size: 22px; }
-.vtile.busy::after { content: "⏳"; position: absolute; top: 2px; left: 4px; font-size: 10px; }
+/* village scene */
+.scene { position: relative; width: 100%; height: 340px; overflow: hidden; }
+.scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.keep { position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%); text-align: center; z-index: 2; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4)); }
+.keep-ic { font-size: 46px; line-height: 1; }
+.hut { position: absolute; transform: translate(-50%, -50%); background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 2px; border-radius: 8px; }
+.hut .hut-ic { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.45)); }
+.hut .hut-lv { margin-top: -4px; font-size: 9px; font-weight: 800; color: #2a1f10; background: var(--gold); border-radius: 99px; padding: 0 5px; }
+.hut.sel { background: rgba(216,178,90,0.25); outline: 2px solid var(--gold); }
+.hut.busy::after { content: "⏳"; position: absolute; top: -8px; right: -8px; font-size: 12px; }
+.hut:active { transform: translate(-50%, -50%) scale(0.94); }
 
 .tap-stall { width: 100%; padding: 22px 10px; font-size: 16px; font-weight: 800; border-radius: 12px; border: none; background: radial-gradient(circle at 50% 30%, #e7c061, #c79a3a); color: #2a1f10; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .tap-stall:active { transform: scale(0.98); filter: brightness(1.08); }
@@ -91,6 +93,32 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 .cell.player { background: #3a5a8a; }
 .cell.ai { background: #6a3a3a; cursor: pointer; }
 .cell.ai.looted { opacity: 0.45; }
+
+/* realm map (sea + land) */
+.sea-map { display: grid; gap: 0; background: #1b3a5c; border: 2px solid #122436; border-radius: 8px; overflow: hidden; }
+.mcell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
+.mcell.water { background: #21466e; }
+.mcell.water:nth-child(3n) { background: #20436a; }
+.mcell.land { background: #46602e; }
+.mcell.land:nth-child(2n) { background: #425a2b; }
+.mcell.coast { box-shadow: inset 0 0 0 1px rgba(228,212,150,0.18); }
+.mcell.ai { cursor: pointer; }
+.mcell.ai.looted { opacity: 0.4; }
+.mcell.sel { outline: 2px solid var(--gold); outline-offset: -2px; z-index: 1; }
+
+/* research tree */
+.rtree { position: relative; }
+.rlines { position: absolute; top: 0; left: 0; pointer-events: none; }
+.rcol-head { position: absolute; top: 0; text-align: center; font-size: 11px; font-weight: 700; color: var(--gold); }
+.rnode { position: absolute; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); text-align: left; padding: 6px 7px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.rnode .rname { font-size: 11.5px; font-weight: 700; line-height: 1.1; }
+.rnode .reff { font-size: 9px; color: var(--muted); flex: 1; line-height: 1.15; }
+.rnode .rfoot { display: flex; justify-content: space-between; align-items: center; font-size: 10px; }
+.rnode.ready { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.rnode.done { border-color: var(--good); color: var(--good); }
+.rnode.done .rname { color: var(--good); }
+.rnode.locked { opacity: 0.5; cursor: not-allowed; }
+.rnode.wait { opacity: 0.92; cursor: not-allowed; }
 
 .num { width: 54px; }
 .foot { text-align: center; font-size: 11px; color: var(--muted); padding: 8px; }

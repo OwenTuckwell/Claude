@@ -111,6 +111,7 @@ export interface AiVillageDef {
 
 export interface WorldDef {
   gridSize: { w: number; h: number };
+  land: string[];
   player: { tile: { x: number; y: number } };
   aiVillages: AiVillageDef[];
 }
