@@ -5,16 +5,15 @@ import { balance, buildingById, troopById, aiById, world, researchById } from ".
 import { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
-import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot } from "./territory";
+import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
 import type {
   BuildingDef, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 const MAX_BUILD_SLOTS = 2;
-const BASE_MARCH_TILES_PER_TICK = 0.5;
 
 // ---------- construction helpers ----------
 
@@ -73,6 +72,9 @@ export function happiness(s: GameState, mods: Modifiers): number {
   for (const b of s.buildings) h += buildingById[b.id].happiness ?? 0;
   const cap = housingCap(s);
   if (s.population > cap * 0.9) h -= (s.population / cap - 0.9) * balance.crowdingPenaltyPerPctOver;
+  // Sprawl: a larger realm is harder to keep content.
+  const tiles = ownedCount(s.tileOwner, "player");
+  h -= Math.floor(Math.max(0, tiles - balance.conquest.freeTiles) / 10) * balance.conquest.sprawlHappinessPer10;
   return Math.round(h * 10) / 10;
 }
 
@@ -89,6 +91,9 @@ export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId,
   }
   net.food -= s.population * balance.foodPerCapitaPerTick * balance.rationTable[s.rationLevel];
   net.gold += s.population * balance.baseTaxYieldPerCapita * s.taxRate * (1 + mods.taxYieldPct);
+  // Realm upkeep: holding many lands drains the treasury (late-game slowdown).
+  const tiles = ownedCount(s.tileOwner, "player");
+  net.gold -= Math.max(0, tiles - balance.conquest.freeTiles) * balance.conquest.tileUpkeepGold;
   for (const r of RESOURCE_IDS) net[r] = Math.round(net[r] * 100) / 100;
   return net;
 }
@@ -432,10 +437,9 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       }
       if (total <= 0) return fail("Send at least one unit.");
       for (const [id, c] of Object.entries(cmd.army)) if (c > 0) s.troops[id] -= c;
-      const dx = ai.tile.x - world.player.tile.x, dy = ai.tile.y - world.player.tile.y;
-      const dist = Math.max(Math.abs(dx), Math.abs(dy));
-      const speed = BASE_MARCH_TILES_PER_TICK * (1 + mods.marchSpeedPct);
-      const travelTicks = Math.max(1, Math.ceil(dist / speed));
+      const dist = nearestOwnedTile(s.tileOwner, ai.tile.x, ai.tile.y).dist;
+      const speed = 1 + mods.marchSpeedPct;
+      const travelTicks = Math.max(1, Math.round((dist * balance.conquest.tileTravelPerTile) / speed));
       s.marches.push({
         id: `m${s.nextId++}`, kind: "assault", targetId: ai.id, targetName: ai.name,
         army: Object.fromEntries(Object.entries(cmd.army).filter(([, c]) => c > 0)),
@@ -504,7 +508,7 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       }
       if (total <= 0) return fail("Send at least one unit.");
       for (const [id, c] of Object.entries(cmd.army)) if (c > 0) s.troops[id] -= c;
-      const dist = Math.max(Math.abs(cmd.x - world.player.tile.x), Math.abs(cmd.y - world.player.tile.y));
+      const dist = nearestOwnedTile(s.tileOwner, cmd.x, cmd.y).dist;
       const speed = 1 + mods.marchSpeedPct;
       const travelTicks = Math.max(1, Math.round((dist * balance.conquest.tileTravelPerTile) / speed));
       s.marches.push({

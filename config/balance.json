@@ -40,8 +40,12 @@
   "conquest": {
     "aiTurnTicks": 240,
     "kingThresholdPct": 0.33,
-    "tileTravelPerTile": 12,
+    "tileTravelPerTile": 14,
     "patrolPerDifficulty": 3,
-    "tileLootPerDifficulty": { "wood": 30, "stone": 20, "iron": 8, "gold": 20 }
+    "tileLootPerDifficulty": { "wood": 30, "stone": 20, "iron": 8, "gold": 20 },
+    "defenderScalePerTile": 0.05,
+    "tileUpkeepGold": 0.03,
+    "freeTiles": 10,
+    "sprawlHappinessPer10": 1
   }
 }

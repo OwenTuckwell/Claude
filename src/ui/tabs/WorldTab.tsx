@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { world, aiById, troopById, balance, factionById } from "../../sim/content";
 import { scoutTravelTicks } from "../../sim/sim";
-import { defenderForTile, realmInfo, key as tileKey } from "../../sim/territory";
+import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile } from "../../sim/territory";
 import { computeModifiers } from "../../sim/effects";
 import { type Command, type GameState } from "../../sim/types";
 import { armyLabel, fmtDuration } from "../format";
@@ -18,15 +18,18 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   const info = realmInfo(state);
   const garrison = Object.entries(state.troops).filter(([, c]) => c > 0);
 
+  // Earthy grass tones per docs/art-style.md §4 (environment stays muted; saturated
+  // colour is reserved for faction heraldry so ownership pops).
+  const TERRAIN = ["#7a8c4e", "#728345", "#6a7b40", "#5f6f3c"];
   const tileColor = (x: number, y: number) => {
     const o = ownerOf(x, y);
-    if (o === "neutral" || !o) return (x + y) % 2 ? "#4f6437" : "#475c31";
-    const c = factionById[o]?.color ?? "#888";
-    return c;
+    if (o === "neutral" || !o) return TERRAIN[(x * 7 + y * 13) % TERRAIN.length];
+    return factionById[o]?.color ?? "#888";
   };
 
   const selDef = sel ? defenderForTile(state.tileOwner, sel.x, sel.y) : null;
-  const selTravel = sel ? Math.max(1, Math.round((Math.max(Math.abs(sel.x - world.player.tile.x), Math.abs(sel.y - world.player.tile.y)) * balance.conquest.tileTravelPerTile) / (1 + mods.marchSpeedPct))) : 0;
+  const selDist = sel ? nearestOwnedTile(state.tileOwner, sel.x, sel.y).dist : 0;
+  const selTravel = Math.max(1, Math.round((selDist * balance.conquest.tileTravelPerTile) / (1 + mods.marchSpeedPct)));
 
   return (
     <div className="list">
@@ -46,12 +49,27 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
             {Array.from({ length: w * h }, (_, i) => {
               const x = i % w, y = Math.floor(i / w);
               if (!isLand(x, y)) return null;
-              return <rect key={i} x={x} y={y} width={1} height={1}
-                fill={tileColor(x, y)} stroke="rgba(0,0,0,0.15)" strokeWidth={0.03}
+              const coast = !isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1);
+              return <rect key={"t" + i} x={x} y={y} width={1} height={1}
+                fill={tileColor(x, y)} stroke={coast ? "rgba(12,28,44,0.55)" : "none"} strokeWidth={coast ? 0.12 : 0}
                 style={{ cursor: ownerOf(x, y) === "player" ? "default" : "pointer" }}
                 onClick={() => setSel({ x, y })} />;
             })}
-            {sel && <rect x={sel.x} y={sel.y} width={1} height={1} fill="none" stroke="#f5e3a0" strokeWidth={0.14} />}
+            {/* faction borders: edges where ownership changes */}
+            {(() => {
+              const lines: any[] = [];
+              for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                const o = ownerOf(x, y);
+                if (!o || o === "neutral" || !isLand(x, y)) continue;
+                const stroke = o === "player" ? "#f0e6c8" : "rgba(255,255,255,0.55)";
+                if (ownerOf(x + 1, y) !== o) lines.push(<line key={`vr${x}_${y}`} x1={x + 1} y1={y} x2={x + 1} y2={y + 1} stroke={stroke} strokeWidth={0.08} />);
+                if (ownerOf(x - 1, y) !== o) lines.push(<line key={`vl${x}_${y}`} x1={x} y1={y} x2={x} y2={y + 1} stroke={stroke} strokeWidth={0.08} />);
+                if (ownerOf(x, y + 1) !== o) lines.push(<line key={`hb${x}_${y}`} x1={x} y1={y + 1} x2={x + 1} y2={y + 1} stroke={stroke} strokeWidth={0.08} />);
+                if (ownerOf(x, y - 1) !== o) lines.push(<line key={`ht${x}_${y}`} x1={x} y1={y} x2={x + 1} y2={y} stroke={stroke} strokeWidth={0.08} />);
+              }
+              return lines;
+            })()}
+            {sel && <rect x={sel.x} y={sel.y} width={1} height={1} fill="none" stroke="#f5e3a0" strokeWidth={0.18} />}
           </svg>
           {[{ tile: world.player.tile, player: true, id: "player", name: "Your realm", difficulty: 0 },
             ...world.aiVillages].map((m: any) => {
@@ -69,7 +87,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
           {state.marches.map((m) => {
             const dest = m.kind === "conquer" ? m.targetTile : m.kind === "assault" ? aiById[m.targetId]?.tile : null;
             if (!dest) return null;
-            const origin = world.player.tile;
+            const origin = nearestOwnedTile(state.tileOwner, dest.x, dest.y);
             const prog = Math.max(0, Math.min(1, 1 - Math.max(0, m.arriveTick - state.tick) / m.travelTicks));
             const from = m.phase === "outbound" ? origin : dest;
             const to = m.phase === "outbound" ? dest : origin;

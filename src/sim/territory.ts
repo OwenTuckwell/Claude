@@ -41,6 +41,19 @@ export function ownedCount(tileOwner: Record<string, string>, id: string): numbe
   return n;
 }
 
+/** Distance (and the tile) from the player's nearest holding to a target — travel is
+ *  measured from your border, not your capital, so reach grows with your realm. */
+export function nearestOwnedTile(tileOwner: Record<string, string>, x: number, y: number, ownerId = "player"): { x: number; y: number; dist: number } {
+  let best = { x: world.player.tile.x, y: world.player.tile.y, dist: Infinity };
+  for (const t of landTiles()) {
+    if (tileOwner[key(t.x, t.y)] !== ownerId) continue;
+    const d = Math.max(Math.abs(t.x - x), Math.abs(t.y - y));
+    if (d < best.dist) best = { x: t.x, y: t.y, dist: d };
+  }
+  if (best.dist === Infinity) best = { x: world.player.tile.x, y: world.player.tile.y, dist: Math.max(Math.abs(world.player.tile.x - x), Math.abs(world.player.tile.y - y)) };
+  return best;
+}
+
 export function crownHolderId(tileOwner: Record<string, string>): string | null {
   const counts: Record<string, number> = {};
   for (const v of Object.values(tileOwner)) if (v !== "neutral") counts[v] = (counts[v] ?? 0) + 1;
@@ -82,15 +95,18 @@ export interface TileDefender { garrison: Record<string, number>; fortifications
 
 export function defenderForTile(tileOwner: Record<string, string>, x: number, y: number): TileDefender {
   const ownerId = tileOwner[key(x, y)] ?? "neutral";
+  // The world levels up with you: garrisons swell as your realm grows (a slowdown lever).
+  const scale = 1 + ownedCount(tileOwner, "player") * balance.conquest.defenderScalePerTile;
+  const grow = (g: Record<string, number>) => Object.fromEntries(Object.entries(g).map(([t, c]) => [t, Math.max(1, Math.round(c * scale))]));
   const cap = factions.find((f) => f.capital.x === x && f.capital.y === y && !f.isPlayer);
   if (cap && ownerId === cap.id) {
     const v = aiById[cap.id];
-    return { garrison: Object.fromEntries(v.garrison.map((g) => [g.troop, g.count])), fortifications: v.fortifications, ownerId, isCapital: true };
+    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true };
   }
-  if (ownerId === "neutral") return { garrison: { spearman: 2 }, fortifications: [], ownerId, isCapital: false };
+  if (ownerId === "neutral") return { garrison: grow({ spearman: 2 }), fortifications: [], ownerId, isCapital: false };
   const diff = factionById[ownerId]?.difficulty ?? 1;
   const p = balance.conquest.patrolPerDifficulty;
-  return { garrison: { spearman: p * diff, archer: Math.ceil((p * diff) / 2) }, fortifications: [], ownerId, isCapital: false };
+  return { garrison: grow({ spearman: p * diff, archer: Math.ceil((p * diff) / 2) }), fortifications: [], ownerId, isCapital: false };
 }
 
 /** Home defensive strength = standing army + your own fortifications. */

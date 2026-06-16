@@ -101,9 +101,13 @@ export interface Balance {
   conquest: {
     aiTurnTicks: number;          // how often AI factions act
     kingThresholdPct: number;     // land share needed to hold the Crown
-    tileTravelPerTile: number;    // march ticks per tile distance
+    tileTravelPerTile: number;    // march ticks per tile distance (from your border)
     patrolPerDifficulty: number;  // garrison size scaler for non-capital tiles
     tileLootPerDifficulty: ResourceMap; // loot when taking a normal tile
+    defenderScalePerTile: number; // tile garrisons grow as your realm grows (slowdown)
+    tileUpkeepGold: number;       // gold/tick per owned tile beyond the free allowance
+    freeTiles: number;            // tiles before upkeep & sprawl penalties bite
+    sprawlHappinessPer10: number; // happiness lost per 10 tiles beyond the allowance
   };
 }
 
