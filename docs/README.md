@@ -26,6 +26,8 @@ yet; this is what the prototype gets built against.
    AI, fog-of-war scouting, castle development + the Castellany research branch, deep
    progression, 2.5D art/feel, MMO, and the (optional) Unity packaging step. Picks up
    where `04` leaves off.
+7. **[art-style.md](art-style.md)** — the art style guide: perspective, palette (hex),
+   tile specs, the AI generation prompt template, and the asset conformance checklist.
 
 ## Sample content data
 
