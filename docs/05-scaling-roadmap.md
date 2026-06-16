@@ -26,6 +26,7 @@ milestones into a concrete, buildable backlog.
 - **K** — Research tree clarity (clean branch-columns, cross-branch prereqs as badges).
 - **L** — The spatial siege model (concentric rings + breach lanes; layout becomes strategy).
 - **M** — Phase 4 long-arc progression (prestige/rebirth, parishes/sheriffs, steward boosts).
+- **N** — Procedural land generation & the medieval name pool (completes the generator).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1308,3 +1309,75 @@ Collectible **timed** boosts played from a hand — the SHK steward-card feel.
   `01 §10`).
 - Generous offline catch-up unaffected.
 - Everything deterministic + typed-effect-based so it's testable and MMO/server-ready.
+
+---
+
+# Appendix N — Procedural land generation & the name pool
+
+Completes Appendix E's `procedural` mode and the auto-naming for big maps. All seeded →
+fully deterministic (reuse `src/sim/rng.ts`).
+
+## N.1 Landmass generation (seeded, any size)
+A simple, robust pipeline that yields believable coastlines without heavy tooling:
+1. **Noise field** — fill the `w×h` grid with value noise. Easiest deterministic option:
+   **diamond-square / midpoint displacement** (or summed octaves of a seeded value-noise).
+   Gives smooth height values in `[0,1]`.
+2. **Sea level threshold** — `land = height > seaLevel`. Tune `seaLevel` to hit a target
+   **land fraction** (e.g. ~35–45% land). Higher threshold → more islands.
+3. **Continental bias (optional)** — multiply height by a radial falloff from map center
+   so land clusters centrally and edges are sea (avoids land running off the border). For
+   an archipelago feel, skip it.
+4. **Largest connected landmass** — flood-fill all land regions; keep the biggest as the
+   mainland; optionally keep a few large secondary islands, discard tiny specks.
+5. **Coastline smoothing** — a couple of **cellular-automata** passes (a land cell with
+   < N land neighbours becomes sea, and vice-versa) to remove jagged single-tile noise and
+   round the coast.
+6. **Emit ASCII** `#`/`.` rows + `gridSize` (the existing `WorldDef.land` format).
+
+Deterministic: identical seed + size + params → identical map. Expose `seaLevel`,
+`landFraction`, `smoothingPasses`, `continentalBias` as generator params (E.2).
+
+## N.2 Placing the home + rings on a generated map
+- **Home:** pick a land tile near the mainland's centroid with enough surrounding land
+  (a clear inner area, `homeClearR`) → `player.tile`.
+- **Rings** are just distance bands from home (Appendix C/E) — they work on any landmass
+  shape automatically. Verify each ring band actually contains land at the target radius;
+  if a band is mostly sea (coastal home), nudge `homeTile` inward or accept fewer rivals in
+  that ring.
+
+## N.3 Rival scatter on generated land (reuse E.3)
+Poisson-disk sampling over **land tiles only**, min-spacing + `homeClearR` exclusion, until
+`rivals` placed. Then assign difficulty/archetype/garrison via the E rules. Guarantee at
+least a few inner-ring rivals so early game has targets.
+
+## N.4 Connectivity sanity (important for marches)
+Because marches move tile-to-tile over land (`tileTravelPerTile`), every rival must be
+**land-reachable** from home:
+- After placement, flood-fill land from `homeTile`; **reject** any rival on a disconnected
+  island (or drop that island in N.1 step 4). A quick test asserts full reachability.
+
+## N.5 The name pool (auto-naming rivals & places)
+Deterministic medieval-English place-name generator so big maps don't need hand-naming.
+Compose from syllable tables:
+- **Prefixes:** Ash, Black, Brook, Dun, East, Fair, Grey, High, Iron, Nor, Oak, Red,
+  Stone, Storm, West, Win, Wolf, Yew, … (note: matches the *feel* of the existing 9 —
+  Brookmere, Greyfen, Ironcliff, Stormhold, Highfort, Dunhollow).
+- **Suffixes:** -bury, -cliff, -dale, -fell, -fen, -ford, -gate, -hollow, -holm, -mere,
+  -moor, -port, -shaw, -stead, -thorpe, -ton, -vale, -wick, -worth, … plus keep-words
+  (-fort, -hold, -keep, -watch) for fortified rivals.
+- **Compose:** `name = prefix + suffix` (e.g. "Stormgate", "Oakmere", "Ironwatch"); pick
+  indices from the seeded RNG.
+- **Uniqueness:** track used names per map; on collision, re-roll or append a regional
+  qualifier ("North Oakmere"). `id = slug(name)` with a numeric suffix if needed.
+- **Override list (E.6)** still wins: hand-named "boss" rivals keep their names; the pool
+  fills the rest.
+
+## N.6 Tests
+- Same seed/params → byte-identical `world.json`.
+- Land fraction within tolerance of target; mainland is one connected component; all rivals
+  land-reachable from home; rings each contain ≥ expected rivals; no duplicate names/ids.
+
+## N.7 Scope note
+This is **Phase 6 / bigger-map** tooling, not needed for Phase 1 (which runs on the current
+authored GB map). Build it when you actually enlarge the world; the E rules already make
+rival data drop-in regardless of how the map was made.
