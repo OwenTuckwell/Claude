@@ -29,6 +29,7 @@ milestones into a concrete, buildable backlog.
 - **N** — Procedural land generation & the medieval name pool (completes the generator).
 - **O** — Save & migration strategy (migration chain to stop version bumps wiping saves).
 - **P** — Onboarding & tutorial (the inner ring as teacher; a reusable objective system).
+- **Q** — Headless sim & balance harness (the tool that makes all tuning evidence-based).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1510,3 +1511,60 @@ Each step = one short check-in, matching the session shape in `00`.
 ## P.6 Done when
 A first-time player, given no external explanation, can reach "took my first enemy keep"
 within a session or two, understanding *why* at each step — and a veteran can skip it all.
+
+---
+
+# Appendix Q — Headless sim & balance harness (the tuning tool)
+
+Referenced by I.4 (AI scaling), the M2 balance pass, and Phase 4 prestige curves — this is
+the **one tool** that makes balancing possible. Because the sim core is pure and
+clock-free (`advance(state, ticks)` with no UI/time deps), a headless runner is cheap.
+
+## Q.1 What it is
+A Node/CLI script (`tools/sim-harness.ts`) that runs the **real sim core** (no UI) for N
+ticks under a scripted **policy**, logging chosen metrics over time to CSV/JSON for
+charting. Reuses `createInitialState`, `applyCommand`, `advance` — zero sim duplication, so
+what it measures is exactly what players experience.
+
+## Q.2 Policies (simulated players)
+Pluggable decision functions `(state) => Command[]` run each step, so we can chart curves
+for different play styles:
+- **Idle** — does nothing (pure offline/passive curve; tests AI pressure from B/I).
+- **Greedy economy** — always builds/researches the cheapest economic gain.
+- **Rusher** — beelines `militia→archery→siegecraft`, attacks the inner ring ASAP (F.3).
+- **Balanced** — a sensible mixed heuristic approximating a real player.
+Each policy is deterministic given a seed → reproducible runs.
+
+## Q.3 Metrics to log (per tick or per interval)
+- Resources, population, happiness, RP, storage saturation.
+- Player progression index **P** (I.2) and **each faction's strength** vs its band
+  `[bandFloor,bandCeil]·P` (the I.1 acceptance check).
+- Time-to-milestones: first siege win, each ring cleared, rank-ups, time-to-Crown.
+- Tap contribution as a **% of total income** over time (validates App. J: should stay
+  small but non-zero — the "gentle aid" check).
+- Boost/prestige effect magnitudes once those exist (M).
+
+## Q.4 What it validates (the acceptance gates, made measurable)
+- **AI scaling (I.4):** factions stay in band; passive player overtaken in a believable
+  window; active player stays ahead; no runaway.
+- **Economy curves (M2):** time-to-milestone matches `02-economy-and-balance.md` targets;
+  no degenerate infinite loops or trivial exploits (e.g. a resource that runs away).
+- **Tap (J):** per-tap value scales with rank but stays a small income fraction.
+- **Progression pacing:** the ring ladder (C) clears at a satisfying cadence, not too
+  fast/grindy.
+
+## Q.5 Workflow
+`npm run sim -- --seed 1 --policy rusher --ticks 50000 --out runs/rusher.csv`, then chart
+(a tiny plotting script or a spreadsheet). Tweak `config/balance.json`, re-run, compare.
+Tight loop → balance by evidence, not vibes.
+
+## Q.6 Tests / CI value
+- A few harness runs double as **regression guards**: assert key milestones land within
+  expected tick windows for fixed seeds/policies. A balance change that breaks pacing fails
+  CI, not playtesting weeks later.
+- Pure + deterministic → fast and stable in CI.
+
+## Q.7 When to build
+- A **minimal** version lands with **Phase 1** (it's how you tune the I.1 constants —
+  Appendix H step 4 references this). Grow its metrics/policies as later systems (tap,
+  boosts, prestige) need tuning. Cheap to start, compounding value.
