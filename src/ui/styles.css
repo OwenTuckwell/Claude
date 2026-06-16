@@ -1,14 +1,20 @@
+/* Palette per docs/art-style.md — parchment & ink UI, earthy world tones. */
 :root {
-  --bg: #1c160f;
-  --panel: #2b2118;
-  --panel2: #352a1e;
-  --line: #4a3b2a;
-  --ink: #ece3d2;
-  --muted: #b29c7d;
-  --gold: #d8b25a;
-  --good: #7fc77f;
-  --bad: #e08a7a;
-  --war: #e0b35a;
+  --bg: #d9c39a;       /* tabletop parchment */
+  --panel: #ece0c4;    /* light parchment card */
+  --panel2: #e0d1ae;   /* secondary / inputs */
+  --line: #b39b6f;     /* aged-leather border */
+  --ink: #2e2620;      /* dark ink text */
+  --muted: #6b5d4a;    /* muted ink */
+  --gold: #b07d1a;     /* heraldic gold accent (readable on light) */
+  --good: #3f7d3f;     /* muted green */
+  --bad: #b1442f;      /* muted red */
+  --war: #9c6f1a;      /* amber */
+  /* world tones (art-style.md §4) */
+  --grass: #7a8c4e;
+  --grass2: #6f8246;
+  --water: #3f6f8c;
+  --water2: #3a6685;
 }
 
 * { box-sizing: border-box; }
@@ -72,7 +78,7 @@ body {
 .tag { font-size: 10px; padding: 1px 6px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
 
 button.act { background: var(--gold); color: #2a1f10; border: none; border-radius: 7px; padding: 6px 10px; font-weight: 700; cursor: pointer; font-size: 12px; }
-button.act:disabled { background: #5a4a30; color: #9b876a; cursor: not-allowed; }
+button.act:disabled { background: #c3b48f; color: #8a7c64; cursor: not-allowed; }
 button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: 12px; }
 
 .queue-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
@@ -93,19 +99,19 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 
 /* world map */
 .map { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
-.cell { aspect-ratio: 1; background: #243018; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: default; }
-.cell.player { background: #3a5a8a; }
-.cell.ai { background: #6a3a3a; cursor: pointer; }
+.cell { aspect-ratio: 1; background: var(--grass2); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: default; }
+.cell.player { background: #4a86d8; }
+.cell.ai { background: #c2554f; cursor: pointer; }
 .cell.ai.looted { opacity: 0.45; }
 
 /* realm map (sea + land) */
-.sea-map { display: grid; gap: 0; background: #1b3a5c; border: 2px solid #122436; border-radius: 8px; overflow: hidden; }
+.sea-map { display: grid; gap: 0; background: var(--water); border: 2px solid #2b4a5e; border-radius: 8px; overflow: hidden; }
 .mcell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
-.mcell.water { background: #21466e; }
-.mcell.water:nth-child(3n) { background: #20436a; }
-.mcell.land { background: #46602e; }
-.mcell.land:nth-child(2n) { background: #425a2b; }
-.mcell.coast { box-shadow: inset 0 0 0 1px rgba(228,212,150,0.18); }
+.mcell.water { background: var(--water); }
+.mcell.water:nth-child(3n) { background: var(--water2); }
+.mcell.land { background: var(--grass); }
+.mcell.land:nth-child(2n) { background: var(--grass2); }
+.mcell.coast { box-shadow: inset 0 0 0 1px rgba(46,38,32,0.22); }
 .mcell.ai { cursor: pointer; }
 .mcell.ai.looted { opacity: 0.4; }
 .mcell.sel { outline: 2px solid var(--gold); outline-offset: -2px; z-index: 1; }
@@ -125,7 +131,7 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 .rnode.wait { opacity: 0.92; cursor: not-allowed; }
 
 /* realm map markers (overlaid on the SVG) */
-.realm-svg { background: linear-gradient(135deg, #1c3e64, #2b5483, #1f476f); background-size: 220% 220%; animation: sea 14s ease-in-out infinite; }
+.realm-svg { background: linear-gradient(135deg, #356084, #3f6f8c, #356084); background-size: 220% 220%; animation: sea 14s ease-in-out infinite; }
 @keyframes sea { 0%,100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
 .keep-mark { position: absolute; transform: translate(-50%, -50%); font-size: 16px; line-height: 1; cursor: pointer; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); transition: opacity 0.4s; }
 .keep-mark.me { cursor: default; font-size: 20px; animation: bob 3.5s ease-in-out infinite; }
