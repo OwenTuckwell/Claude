@@ -27,6 +27,7 @@ milestones into a concrete, buildable backlog.
 - **L** — The spatial siege model (concentric rings + breach lanes; layout becomes strategy).
 - **M** — Phase 4 long-arc progression (prestige/rebirth, parishes/sheriffs, steward boosts).
 - **N** — Procedural land generation & the medieval name pool (completes the generator).
+- **O** — Save & migration strategy (migration chain to stop version bumps wiping saves).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1381,3 +1382,70 @@ Compose from syllable tables:
 This is **Phase 6 / bigger-map** tooling, not needed for Phase 1 (which runs on the current
 authored GB map). Build it when you actually enlarge the world; the E rules already make
 rival data drop-in regardless of how the map was made.
+
+---
+
+# Appendix O — Save & migration strategy (do this before real players)
+
+Nearly every phase here adds fields to `GameState` and says "bump `schemaVersion`." There
+needs to be **one** coherent way to handle that — because the current behavior loses data.
+
+## O.1 The problem (current behavior)
+`loadOrNew` (`persistence.ts:31`) does: `if (parsed.schemaVersion !== SCHEMA_VERSION)
+return createInitialState()`. **A version mismatch wipes the entire save.** Acceptable in
+the prototype (state is reshaped constantly), but **once there are real players, every
+update would delete their realm.** `importSave` (`:55`) has the same hard gate.
+
+## O.2 The fix — a migration chain
+Replace "mismatch → wipe" with an **ordered list of pure migrators**, each upgrading one
+version to the next; apply in sequence from the save's version to current.
+```ts
+// src/sim/migrations.ts
+type Migrator = (s: any) => any;          // vN -> vN+1, pure
+const MIGRATIONS: Record<number, Migrator> = {
+  1: (s) => ({ ...s, aiState: mapValues(s.aiState, a => ({ ...a, economy: 0, army: 0, fortLevel: 0 })), schemaVersion: 2 }), // Phase 1 (App. H step 3)
+  2: (s) => ({ ...s, visibility: {}, schemaVersion: 3 }),                  // Phase 2 fog of war (App. G)
+  3: (s) => ({ ...s, castleQueue: [], castle: emptyCastle(), schemaVersion: 4 }), // Phase 3 castle (App. A)
+  // ...one entry per schema bump, forever
+};
+export function migrate(s: any): GameState {
+  while (s.schemaVersion < SCHEMA_VERSION) {
+    const up = MIGRATIONS[s.schemaVersion];
+    if (!up) throw new Error(`No migrator from v${s.schemaVersion}`);
+    s = up(s);
+  }
+  return s as GameState;
+}
+```
+`loadOrNew`/`importSave` call `migrate(parsed)` instead of comparing-and-wiping; only fall
+back to `createInitialState()` if migration genuinely fails (corrupt save).
+
+## O.3 Discipline (the rule to follow every phase)
+**Bumping `SCHEMA_VERSION` and adding its migrator are one inseparable change.** A schema
+bump without a migrator is a bug. Each appendix that adds state owns its migrator entry
+(defaults for new fields — exactly what App. H step 3, G, A already call out).
+
+## O.4 Safety
+- **Backup before migrate:** keep the raw pre-migration save under `bannerfall.save.bak`
+  so a broken migrator is recoverable (and the player isn't stranded).
+- **Validate after migrate:** a shape check (required keys/types present); on failure, fall
+  back to backup, not to a wipe.
+- **Never mutate during read** beyond migration; migration is pure and deterministic.
+
+## O.5 Testing
+- **Fixture saves:** commit a small JSON save for each old version under
+  `src/sim/__fixtures__/`. A test migrates each up to current and asserts it loads + the new
+  fields are sensibly defaulted. This catches a missing/broken migrator immediately.
+- Round-trip: `export → import` is identity at the current version.
+
+## O.6 Forward-compat with the Unity/C# port (Phase 7)
+The save format + migration chain are **carried-forward assets** (`04` principle). The C#
+runner must implement the **same migrators** (verified against the same fixtures), so a
+save made in the web build loads in Unity and vice-versa. Keeping migrators pure + data-only
+(no engine types) makes that a direct translation.
+
+## O.7 When to land it
+- The **mechanism** (O.2) should land **with Phase 1** (its first schema bump is App. H
+  step 3) — that's the moment the wipe behavior would first hurt, and it's cheap to add.
+- Until then it's noted; don't retrofit elaborate migration onto throwaway prototype saves,
+  but **do** put the chain in place the first time a bump matters.
