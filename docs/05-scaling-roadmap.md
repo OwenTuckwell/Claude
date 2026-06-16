@@ -25,6 +25,7 @@ milestones into a concrete, buildable backlog.
 - **J** — Tap & market scaling (rank-scaled tap that stays a gentle, non-breaking aid).
 - **K** — Research tree clarity (clean branch-columns, cross-branch prereqs as badges).
 - **L** — The spatial siege model (concentric rings + breach lanes; layout becomes strategy).
+- **M** — Phase 4 long-arc progression (prestige/rebirth, parishes/sheriffs, steward boosts).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1228,3 +1229,82 @@ The attacker's army + siege engines resolve against the layout by a fixed policy
 - Are traps one-shot-per-siege (consumed) or persistent?
 - How much does layout matter vs raw stats? (tune so layout is a real multiplier, not the
   whole game — keep army/economy meaningful too).
+
+---
+
+# Appendix M — Phase 4 long-arc progression (the retention spine)
+
+The systems that keep players for months: **prestige/rebirth**, the **political layer**,
+and the **steward boost economy** (all `[Later]` in `01 §9`). Key architectural gift:
+`computeModifiers` (`effects.ts:25`) already aggregates *typed effects* into one
+`Modifiers` object, and its own comment says boosts "plug in here with no new sim
+plumbing." **So all three systems below are just additional effect sources feeding the
+same aggregation** — minimal new sim code.
+
+## M.1 Prestige / rebirth ("Legacy")
+The classic long-arc loop: reset to grow faster.
+- **Trigger:** reaching a capstone (e.g. holding the Crown, or hitting a rank/territory
+  milestone) unlocks **Abdicate** — reset your realm for a permanent meta-currency,
+  **Renown**.
+- **Resets:** village, castle, research, army, territory back to start. **Keeps:** Renown,
+  the Legacy perk tree, cosmetics, achievements.
+- **Renown perk tree:** permanent, gentle bonuses (start with extra resources, +X% early
+  production, a free building, faster first research) — authored as **typed effects**, so
+  they flow through `computeModifiers` exactly like research. Add a `legacy` effect source
+  alongside research in `effects.ts`.
+- **The loop:** each rebirth is faster and reaches further (new rings, App. C) before the
+  next reset. Satisfying, and it gives "I finished the game" players a reason to continue.
+- **Fairness (pillar):** Renown is **earned**, scales gently, and confers convenience/
+  head-start — never runaway raw power that trivializes the game.
+- Determinism preserved (reset is a pure state transform + carried meta).
+
+## M.2 Political layer (parishes, sheriffs, influence)
+Turns territory from "tiles" into "governed regions" — and maps cleanly onto the ring
+model (a parish ≈ a sector/cluster of tiles).
+- **Parishes:** named clusters of tiles (data: `content/parishes.json`, each a tile list +
+  perks). `tileOwner` already tracks per-tile control; a parish's controller = who holds
+  the majority of its tiles. **No structural change**, just an overlay + aggregation.
+- **Sheriff:** controlling a parish makes you its sheriff → a **parish perk** (typed
+  effect: local production/tax/happiness bonus) + a small upkeep/defense duty.
+- **Influence resource:** the `[Later]` resource from the GDD (already a slot in the design)
+  — drips from civic buildings, spent on political actions (claim a parish, levy a local
+  tax, later: alliances). Add as a resource + a civic effect.
+- **Single-player now → MMO later:** AI factions hold parishes; capturing rings means
+  capturing parishes and their perks. In the MMO (Phase 6) sheriffs become real players —
+  same data model, no rewrite (consistent with `08-world` design).
+
+## M.3 Steward boost economy (the "card hand")
+Collectible **timed** boosts played from a hand — the SHK steward-card feel.
+- **A boost = a typed effect with a duration:** e.g. "+25% production for 2h", "−30% build
+  time for 1h", "+15% troop attack for the next siege". Authored in `content/boosts.json`
+  using the **same effect vocabulary** as research.
+- **Integration:** store `activeBoosts: { effectId, expiresTick }[]` on `GameState`;
+  `computeModifiers` adds active, unexpired boosts as another effect source. Expiry checked
+  each tick. That's the whole engine — the typed-effect design pays off here.
+- **Acquisition:** earned from play (siege wins, daily check-ins, achievements, parish
+  control). Monetization (if/when) sells **convenience/cosmetic** boosts, **never**
+  permanent power — protects fairness and the eventual MMO economy (`01 §10`).
+- **Hand/inventory UI:** a small hand of held boosts you choose when to play — adds
+  light moment-to-moment decisions over the slow base loop.
+
+## M.4 How the three interlock
+- **Prestige** resets the base game but **keeps** Renown perks, boosts collection, and
+  achievements — so a rebirth isn't starting from zero, it's starting *ahead*.
+- **Parishes** give a mid-term territorial goal between sieges and feed **influence**,
+  which (later) buys political boosts → into the **boost hand**.
+- All three express through `Modifiers`, so they compose cleanly with research and never
+  need bespoke sim hooks.
+
+## M.5 Phasing within Phase 4
+1. **Prestige first** — biggest retention win, smallest surface (reset transform + a Legacy
+   perk tree of typed effects).
+2. **Boost economy second** — `activeBoosts` + `computeModifiers` hook + a content file;
+   small and high-engagement.
+3. **Political layer last** — most content (parishes data, influence resource, sheriff
+   perks); designed to slide into the MMO unchanged.
+
+## M.6 Fairness guardrails (all three)
+- Earned-not-bought power; monetization limited to convenience + cosmetics (`00 §pillar 4`,
+  `01 §10`).
+- Generous offline catch-up unaffected.
+- Everything deterministic + typed-effect-based so it's testable and MMO/server-ready.
