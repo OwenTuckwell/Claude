@@ -4,4 +4,5 @@ export { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor } from
 export type { Modifiers } from "./effects";
 export { resolveSiege } from "./siege";
 export * from "./territory";
+export * from "./rivals";
 export * as content from "./content";

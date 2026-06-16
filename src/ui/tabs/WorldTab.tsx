@@ -2,6 +2,7 @@ import { useState } from "react";
 import { world, aiById, troopById, balance, factionById } from "../../sim/content";
 import { scoutTravelTicks } from "../../sim/sim";
 import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile } from "../../sim/territory";
+import { archetypeInfoFor } from "../../sim/rivals";
 import { computeModifiers } from "../../sim/effects";
 import { type Command, type GameState } from "../../sim/types";
 import { armyLabel, fmtDuration } from "../format";
@@ -110,6 +111,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
                 <h3 style={{ margin: 0 }}>{selDef.isCapital ? "🏯 " : "🚩 "}{factionById[selDef.ownerId]?.name ?? "Unclaimed"} ({sel.x},{sel.y})</h3>
                 {selDef.isCapital && <span className="tag">capital</span>}
               </div>
+              {factionById[selDef.ownerId] && <div className="cost">{archetypeInfoFor(selDef.ownerId).label} rival · {archetypeInfoFor(selDef.ownerId).blurb}</div>}
               <div className="muted">Defenders: {Object.entries(selDef.garrison).map(([t, c]) => `${c} ${troopById[t]?.name ?? t}`).join(", ") || "none"}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}</div>
               {selDef.isCapital && <div className="cost">Taking this capital topples {factionById[selDef.ownerId]?.name} entirely.</div>}
               <h3 style={{ marginTop: 10 }}>Assemble your army <span className="muted" style={{ fontWeight: 400 }}>· ~{fmtDuration(selTravel, balance.tickLengthSec)} march</span></h3>

@@ -5,7 +5,8 @@ import {
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
 import { landTiles, key, ownedCount, realmInfo } from "./territory";
-import { world } from "./content";
+import { archetypeFor, ARCHETYPE } from "./rivals";
+import { world, factions } from "./content";
 import type { GameState } from "./types";
 
 const fresh = () => createInitialState(777);
@@ -140,6 +141,14 @@ describe("territory, conquest & rank", () => {
     const after = advance(r.state, 120);
     expect(after.tileOwner[key(neutral.x, neutral.y)]).toBe("player");
     expect(after.reports.some((rep) => rep.kind === "conquer" && rep.victory)).toBe(true);
+  });
+
+  it("assigns every rival a stable archetype", () => {
+    for (const f of factions.filter((x) => !x.isPlayer)) {
+      const a = archetypeFor(f.id);
+      expect(ARCHETYPE[a]).toBeDefined();
+      expect(archetypeFor(f.id)).toBe(a); // deterministic
+    }
   });
 
   it("crowns the faction holding a third of the realm as King", () => {

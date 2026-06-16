@@ -2,6 +2,7 @@
 // Deterministic and pure-ish: aiTurn mutates the passed state (called from the tick).
 import { world, factions, factionById, aiById, balance, troopById, buildingById } from "./content";
 import { nextRandom } from "./rng";
+import { archetypeInfoFor, playerStrengthIndex } from "./rivals";
 import type { GameState, ResourceMap } from "./types";
 import { RESOURCE_IDS } from "./types";
 
@@ -136,9 +137,11 @@ export function aiTurn(state: GameState): void {
   state.lastAiTurn = state.tick;
   const playerCap = key(world.player.tile.x, world.player.tile.y);
 
+  const pressure = 1 + Math.min(0.5, playerStrengthIndex(state) * 0.002);
   for (const f of factions) {
     if (f.isPlayer) continue;
     if (state.tileOwner[key(f.capital.x, f.capital.y)] !== f.id) continue; // defeated
+    const info = archetypeInfoFor(f.id);
     const mine = landTiles().filter((t) => state.tileOwner[key(t.x, t.y)] === f.id);
     if (mine.length === 0) continue;
 
@@ -151,19 +154,24 @@ export function aiTurn(state: GameState): void {
       else if (o === "neutral") neutralBorder.push(n);
     }
 
-    if (playerBorder.length > 0) {
+    if (playerBorder.length > 0 && roll(state) < info.willing) {
       const tgt = playerBorder[Math.floor(roll(state) * playerBorder.length)];
-      const atk = factionAttackPower(state.tileOwner, f.id) * (0.8 + roll(state) * 0.5);
+      const atk = factionAttackPower(state.tileOwner, f.id) * info.attackMult * pressure * (0.8 + roll(state) * 0.5);
       if (atk > playerDefensePower(state)) {
         state.tileOwner[key(tgt.x, tgt.y)] = f.id;
         for (const id of Object.keys(state.troops)) state.troops[id] = Math.floor(state.troops[id] * 0.92);
-        state.log.unshift({ tick: state.tick, text: `${f.name} seized your land at (${tgt.x},${tgt.y})! Defend your borders.`, kind: "bad" });
+        state.log.unshift({ tick: state.tick, text: `${f.name} (${info.label}) seized your land at (${tgt.x},${tgt.y})! Defend your borders.`, kind: "bad" });
         if (state.log.length > 60) state.log.length = 60;
         continue;
+      } else {
+        state.log.unshift({ tick: state.tick, text: `You repelled a raid from ${f.name} at (${tgt.x},${tgt.y}).`, kind: "good" });
+        if (state.log.length > 60) state.log.length = 60;
       }
     }
-    if (neutralBorder.length > 0) {
-      const g = neutralBorder[Math.floor(roll(state) * neutralBorder.length)];
+    // expand into neutral land (economic rivals grab more per turn)
+    for (let e = 0; e < info.expand && neutralBorder.length > 0; e++) {
+      const idx = Math.floor(roll(state) * neutralBorder.length);
+      const g = neutralBorder.splice(idx, 1)[0];
       state.tileOwner[key(g.x, g.y)] = f.id;
     }
   }
