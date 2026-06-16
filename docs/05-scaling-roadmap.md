@@ -381,3 +381,108 @@ These were open questions; now decided. They drive the implementation.
 - Exact keep-level → grid-size curve.
 - Whether garrison assignment is per-tower (micro) or one castle-wide garrison number.
 - Repair cost as a % of original build cost vs a flat per-damage formula.
+
+## A.6 Design clarification — Village vs Castle
+- **Village = economy engine.** Holds production/housing/civic buildings. Today
+  rearranging it is largely cosmetic; an *optional later idea* is to make village layout
+  mechanical (adjacency bonuses, districts) — not committed.
+- **Castle = defense engine.** Spatial layout here *does* matter for sieges (the breach-
+  lane model below). This is the home of tactical defensive strategy.
+- Net: the two screens have distinct jobs — grow the economy in the village, design the
+  fortress in the castle. AI keeps mirror this (they have economies *and* castles).
+
+---
+
+# Appendix B — Phase 1 detail (scaling AI rivals)
+
+How the AI becomes a real, scaling opponent. All of this lives in `src/sim` (pure,
+deterministic, tested). Today `aiTurn` (`src/sim/territory.ts:118`) only grabs bordering
+tiles using a flat `factionAttackPower`; there is no AI economy, growth, or real siege.
+
+## B.1 AI state model (abstract, cheap)
+Do **not** run a full player-sim per faction. Give each AI faction a compact state on
+`GameState` (bump save version), advanced each AI turn:
+- `economy` — a growing power/wealth score (drives everything else).
+- `army` — abstract military strength → converted to a concrete troop mix for sieges.
+- `fortLevel` — capital fortification strength (grows over time; used when the player
+  attacks it).
+- `archetype` — `turtle | aggressor | economic` (see B.3).
+- `tilesOwned` is already derivable from `tileOwner`.
+
+## B.2 Scaling to the player (fair, not punishing)
+- **Player progression index `P`** = a blend of rank/tiles + total research ranks +
+  field-army power + castle strength. One number summarizing "how strong is the player."
+- **Target band:** each AI aims for strength ≈ `P × bandFactor(archetype, difficulty)`.
+  Passive players see AI drift *slightly* ahead (pressure); active players stay ahead.
+- **Rubber-banding with fairness limits:** AI growth rate adjusts toward its target band
+  but is **capped** — it can't spike absurdly if you sprint, and there's a **floor** so a
+  dominant player still faces token resistance. All constants in `config/balance.json`.
+- **No wipeouts:** player capital remains unconquerable (already true).
+
+## B.3 Personalities (distinct, from `archetype` + `difficulty`)
+| Archetype | Economy | Aggression | Forts | Feel |
+|---|---|---|---|---|
+| **Turtle** | medium | low (rarely attacks player) | **high** (hard to crack) | a tough nut you choose to crack |
+| **Aggressor** | low–med | **high** (raids player land, sieges back) | medium | the rival that keeps you defending |
+| **Economic** | **high** (snowballs if ignored) | low early, rises with size | medium | ignore it and it becomes the runaway threat |
+
+Difficulty (the existing `difficulty` field) scales each archetype's magnitudes.
+
+## B.4 AI actions each turn
+On the existing AI-turn interval (`balance.conquest.aiTurnTicks`), each living faction:
+1. **Grows economy** (per archetype) and reinvests into `army` / `fortLevel`.
+2. **Expands** into neutral border land (already exists) — and **wars rival factions**
+   over contested neutral land so the map evolves on its own.
+3. **Pressures the player:** aggressors launch **real sieges** at the player (reuse
+   `resolveSiege`, produce a Chronicle report the player can read) rather than silently
+   flipping a tile. Seizing a tile requires actually beating the player's defense.
+4. Defends: a faction under pressure shifts investment toward `fortLevel`.
+
+## B.5 Turning abstract AI strength into a real siege
+When the player attacks an AI capital/tile, or an AI attacks the player, convert the
+faction's `army`/`fortLevel` into a concrete `SiegeDefender` (garrison troop mix +
+fortifications) on the fly, scaled by `difficulty` and current strength — then run the
+**existing deterministic `resolveSiege`**. This reuses the real combat model (B.6) for
+both directions and keeps everything seed-deterministic.
+
+## B.6 The combat model (answers "is it just bigger army?")
+**No.** The current resolver already encodes tactics; Phase 1 *feeds* it scaling inputs,
+it doesn't replace it:
+- **Walls gate the assault.** No siege engines ⇒ **cannot breach**, repelled by tower
+  archers regardless of army size (`siege.ts:111`).
+- **Siege engines vs wall HP** sets breach rounds; longer breach ⇒ more **tower-archer
+  attrition** on the approach (`siege.ts:118`).
+- **Role counters** = +25% vs countered roles (`siege.ts:64`); composition matters.
+- **Home-ground edge** = defenders +10% in the field battle (`siege.ts:65`).
+
+So victory needs the *right army* (siege engines + counters + enough mass), not just the
+*biggest*. **What's missing today: spatial layout** — forts are summed into one `fortHP`
+(`siege.ts:93`), so *where* you place towers/walls doesn't matter yet. That tactical
+**breach-lane** layer is **Phase 3** (castle), and AI castles will use the same layout
+system once it exists. For Phase 1 we keep the aggregate model and make AI fort/garrison
+*scale*; Phase 3 makes both sides' layouts *positional*.
+
+## B.7 Anti-frustration & readability
+- **Telegraphing:** scouting (Phase 2) and/or Chronicle warnings hint at incoming
+  aggression so attacks aren't unreadable surprises.
+- **Cooldowns:** cap how often any one faction can siege the player so you're pressured,
+  not swarmed.
+- **Clear Chronicle reports** for every AI action (who, what, outcome, losses) — the
+  player should always understand *why* the map changed.
+
+## B.8 Determinism, offline catch-up, saves
+- AI uses the existing seeded RNG stream — fully deterministic and replayable.
+- AI turns advance during **offline catch-up** the same as the rest of the sim, so the
+  world legitimately moves while you're away (capped/credited like other progress).
+- Extending `GameState` ⇒ **bump the save version** and handle migration of old saves.
+
+## B.9 Phase 1 missing-details checklist (resolve while building)
+- [ ] Exact formula/weights for the player progression index `P`.
+- [ ] `bandFactor` curves + rubber-band caps/floor per difficulty (tune via headless sim).
+- [ ] Mapping from abstract `army`/`fortLevel` → concrete troop mix & fortifications.
+- [ ] AI-vs-AI resolution: full `resolveSiege` or a cheap abstract clash? (lean cheap).
+- [ ] Siege cooldown + max simultaneous threats against the player.
+- [ ] Loot/consequences when AI wins vs the player (and when player wins vs AI).
+- [ ] Save-migration path for existing saves.
+- [ ] Golden-state tests: deterministic growth; scaling stays in band over a long game;
+      no runaway loops; AI-vs-player and player-vs-AI sieges resolve consistently.
