@@ -486,3 +486,83 @@ system once it exists. For Phase 1 we keep the aggregate model and make AI fort/
 - [ ] Save-migration path for existing saves.
 - [ ] Golden-state tests: deterministic growth; scaling stays in band over a long game;
       no runaway loops; AI-vs-player and player-vs-AI sieges resolve consistently.
+
+---
+
+# Appendix C — The layered model (the unifying frame)
+
+The realization that "everything falls into layers." The game is **concentric rings
+radiating from your home tile (15,19)**, and every system is a layer that stacks onto
+those rings. This is the spine that ties AI, research, rank, and geography together.
+
+## C.1 Geographic difficulty rings (already true in the data)
+Difficulty already correlates with distance from home — the map is a natural ladder:
+
+| Ring | Rivals (difficulty) | Distance | Role in the arc |
+|---|---|---|---|
+| **Inner** | Stormhold (1), Westvale (1), Highfort (1) | ~6–9 | Tutorial rivals — first conquests |
+| **Mid** | Eastmarch (2), Greyfen Keep (2) | ~11 | The step-up after you've grown |
+| **Outer** | Ironcliff (3), Dunhollow (3) | ~13–16 | Real tests; need research + a real army |
+| **Far** | Southport (4), Brookmere (4) | ~15–19 | Endgame powers; rivals for the Crown |
+
+You expand outward ring by ring; the Crown (`territory.ts`) sits at the end of the push.
+
+## C.2 Rival archetype assignments (B.3 archetypes mapped onto the ladder)
+A balanced spread (3 turtle / 3 aggressor / 3 economic) so every ring teaches something:
+
+| Rival | Diff | Archetype | Why / what it teaches |
+|---|---|---|---|
+| **Stormhold** | 1 | Aggressor | Closest rival → early raids teach you to *defend* |
+| **Westvale** | 1 | Economic | Ignore it and it snowballs → teaches you to *act* |
+| **Highfort** | 1 | Turtle | Low-stakes walled keep → teaches you to bring *siege engines* |
+| **Eastmarch** | 2 | Aggressor | Sustained mid-game pressure on your north |
+| **Greyfen Keep** | 2 | Turtle | "Keep" by name & nature — a tougher nut |
+| **Ironcliff** | 3 | Turtle | Hard fortress; needs real siege tech to crack |
+| **Dunhollow** | 3 | Economic | Distant snowballer; a race if left alone |
+| **Southport** | 4 | Aggressor | Strong late raider from the far west |
+| **Brookmere** | 4 | Economic | The runaway northern power — the Crown rival |
+
+(These set each faction's `archetype`; `difficulty` scales the magnitudes — see B.3.)
+
+## C.3 Research is the layer that unlocks each ring
+The progression tree isn't separate from the AI — it's the **key that opens the next
+ring**. Each ring has a "gateway" capability the tree provides:
+
+| To handle... | You need research in... | Branch |
+|---|---|---|
+| Turtle keeps (Highfort, Greyfen, Ironcliff) | **siege engineering** (rams/trebuchets/towers) | siege_engineering (App. A.2) |
+| Aggressors raiding you (Stormhold, Eastmarch, Southport) | **castellany / fortification** (survive sieges) | castellany (App. A.2) |
+| Economic snowballers (Westvale, Dunhollow, Brookmere) | **economy** (out-grow them) + military mass | economy / military |
+| Seeing far rivals before you commit | **scouting** (Phase 2 fog of war) | logistics |
+
+So the build order *is* the strategy: you research toward the ring you want to push next.
+
+## C.4 The full layer stack
+Reading the game top to bottom, every layer reinforces the rings:
+
+```
+Rank ladder (Peasant → King)      ── your title rises as you push outward
+        ▲
+Territory / the Crown             ── owning rings; the Crown ends the arc
+        ▲
+AI rivals (archetypes + scaling)  ── populate each ring; stay tense as you grow
+        ▲
+Research tree (gateway techs)     ── unlocks the tools for the NEXT ring
+        ▲
+Castle (defense) + Army           ── what you bring to each ring's fights
+        ▲
+Village economy                   ── the engine that funds all of it
+        ▲
+Geography (concentric rings)      ── the board the whole arc plays out on
+```
+
+## C.5 Design implications (carry into building)
+- **Tune rings to gate on research,** not just raw army size — an under-teched player
+  bounces off a ring (good: it sends them back to the tree), a teched player breaks
+  through (good: progression feels earned).
+- **Place "gateway techs"** in the tree that visibly correspond to rings (e.g. a siege-
+  engine tier that's clearly "the thing that lets you take Highfort").
+- **AI scaling (B.2) keeps each ring tense** so even a re-visited inner ring isn't
+  trivial if you dawdled — the rings live and grow, they're not static checkpoints.
+- This frame should guide content tuning in Phase 4 and the world growth in Phase 6
+  (more rings = bigger world, same model).
