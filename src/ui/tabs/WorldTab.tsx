@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { world, aiById, troopById, balance, factionById } from "../../sim/content";
 import { scoutTravelTicks } from "../../sim/sim";
-import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile } from "../../sim/territory";
+import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile, buildExplored, tileVisibility } from "../../sim/territory";
 import { archetypeInfoFor } from "../../sim/rivals";
 import { computeModifiers } from "../../sim/effects";
 import { type Command, type GameState } from "../../sim/types";
@@ -18,6 +18,9 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   const ownerOf = (x: number, y: number) => state.tileOwner[tileKey(x, y)];
   const info = realmInfo(state);
   const garrison = Object.entries(state.troops).filter(([, c]) => c > 0);
+  const explored = buildExplored(state);
+  const vis = (x: number, y: number) => tileVisibility(state, explored, x, y);
+  const scoutRankOk = scoutRank > 0;
 
   // Earthy grass tones per docs/art-style.md §4 (environment stays muted; saturated
   // colour is reserved for faction heraldry so ownership pops).
@@ -51,8 +54,9 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
               const x = i % w, y = Math.floor(i / w);
               if (!isLand(x, y)) return null;
               const coast = !isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1);
+              const known = vis(x, y) >= 1;
               return <rect key={"t" + i} x={x} y={y} width={1} height={1}
-                fill={tileColor(x, y)} stroke={coast ? "rgba(12,28,44,0.55)" : "none"} strokeWidth={coast ? 0.12 : 0}
+                fill={known ? tileColor(x, y) : "#2c2a26"} stroke={coast ? "rgba(12,28,44,0.55)" : "none"} strokeWidth={coast ? 0.12 : 0}
                 style={{ cursor: ownerOf(x, y) === "player" ? "default" : "pointer" }}
                 onClick={() => setSel({ x, y })} />;
             })}
@@ -62,6 +66,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
               for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
                 const o = ownerOf(x, y);
                 if (!o || o === "neutral" || !isLand(x, y)) continue;
+                if (vis(x, y) < 1) continue;
                 const stroke = o === "player" ? "#f0e6c8" : "rgba(255,255,255,0.55)";
                 if (ownerOf(x + 1, y) !== o) lines.push(<line key={`vr${x}_${y}`} x1={x + 1} y1={y} x2={x + 1} y2={y + 1} stroke={stroke} strokeWidth={0.08} />);
                 if (ownerOf(x - 1, y) !== o) lines.push(<line key={`vl${x}_${y}`} x1={x} y1={y} x2={x} y2={y + 1} stroke={stroke} strokeWidth={0.08} />);
@@ -74,13 +79,16 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
           </svg>
           {[{ tile: world.player.tile, player: true, id: "player", name: "Your realm", difficulty: 0 },
             ...world.aiVillages].map((m: any) => {
+            const known = m.player || vis(m.tile.x, m.tile.y) >= 1;
+            if (!known) return null;
+            const scouted = m.player || vis(m.tile.x, m.tile.y) >= 2;
             const alive = m.player || ownerOf(m.tile.x, m.tile.y) === m.id;
             return (
               <div key={m.id} className={"keep-mark" + (m.player ? " me" : "")}
                 style={{ left: `${((m.tile.x + 0.5) / w) * 100}%`, top: `${((m.tile.y + 0.5) / h) * 100}%`, opacity: alive ? 1 : 0.35 }}
-                title={m.name}
+                title={m.player ? m.name : scouted ? m.name : "Unscouted keep"}
                 onClick={() => setSel({ x: m.tile.x, y: m.tile.y })}>
-                {m.player ? "🏰" : m.difficulty >= 3 ? "🛡️" : "⚔️"}
+                {m.player ? "🏰" : !scouted ? "❓" : m.difficulty >= 3 ? "🛡️" : "⚔️"}
               </div>
             );
           })}
@@ -108,12 +116,24 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
           ) : (
             <>
               <div className="row">
-                <h3 style={{ margin: 0 }}>{selDef.isCapital ? "🏯 " : "🚩 "}{factionById[selDef.ownerId]?.name ?? "Unclaimed"} ({sel.x},{sel.y})</h3>
-                {selDef.isCapital && <span className="tag">capital</span>}
+                <h3 style={{ margin: 0 }}>{vis(sel.x, sel.y) < 1 ? `❓ Unknown lands (${sel.x},${sel.y})` : `${selDef.isCapital ? "🏯 " : "🚩 "}${factionById[selDef.ownerId]?.name ?? "Unclaimed"} (${sel.x},${sel.y})`}</h3>
+                {selDef.isCapital && vis(sel.x, sel.y) >= 2 && <span className="tag">capital</span>}
               </div>
-              {factionById[selDef.ownerId] && <div className="cost">{archetypeInfoFor(selDef.ownerId).label} rival · {archetypeInfoFor(selDef.ownerId).blurb}</div>}
-              <div className="muted">Defenders: {Object.entries(selDef.garrison).map(([t, c]) => `${c} ${troopById[t]?.name ?? t}`).join(", ") || "none"}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}</div>
-              {selDef.isCapital && <div className="cost">Taking this capital topples {factionById[selDef.ownerId]?.name} entirely.</div>}
+              {vis(sel.x, sel.y) >= 1 && factionById[selDef.ownerId] && <div className="cost">{archetypeInfoFor(selDef.ownerId).label} rival · {archetypeInfoFor(selDef.ownerId).blurb}</div>}
+              {(() => {
+                const lv = vis(sel.x, sel.y);
+                const fuzz = (c: number) => `~${Math.max(1, Math.round(c / 5) * 5)}`;
+                if (lv < 2) return (
+                  <div className="row">
+                    <span className="muted">Defenders: unknown — scout to reveal.</span>
+                    {scoutRankOk && <button className="ghost" onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>🔭 Scout</button>}
+                  </div>
+                );
+                const list = Object.entries(selDef.garrison).map(([t, c]) => `${lv >= 3 ? c : fuzz(c)} ${troopById[t]?.name ?? t}`).join(", ") || "none";
+                return <div className="muted">Defenders ({lv >= 3 ? "exact" : "estimated"}): {list}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}
+                  {lv < 3 && scoutRankOk && <> · <a style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>scout again</a></>}</div>;
+              })()}
+              {selDef.isCapital && vis(sel.x, sel.y) >= 1 && <div className="cost">Taking this capital topples {factionById[selDef.ownerId]?.name} entirely.</div>}
               <h3 style={{ marginTop: 10 }}>Assemble your army <span className="muted" style={{ fontWeight: 400 }}>· ~{fmtDuration(selTravel, balance.tickLengthSec)} march</span></h3>
               {garrison.length === 0 ? <div className="muted">Train troops first (Army tab).</div> : garrison.map(([id, c]) => (
                 <div className="row" key={id}>

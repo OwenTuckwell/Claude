@@ -151,6 +151,17 @@ describe("territory, conquest & rank", () => {
     }
   });
 
+  it("raises a tile's intel after a scouting expedition (fog of war)", () => {
+    const base = createInitialState(9);
+    const cap = world.aiVillages[0].tile;
+    const s: GameState = { ...base, research: { scouting: 1 }, resources: { ...base.resources, food: 200 } };
+    expect(s.intel[key(cap.x, cap.y)] ?? 0).toBe(0);
+    const r = applyCommand(s, { type: "scoutTile", x: cap.x, y: cap.y });
+    expect(r.result.ok).toBe(true);
+    const after = advance(r.state, 1200);
+    expect(after.intel[key(cap.x, cap.y)] ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
   it("crowns the faction holding a third of the realm as King", () => {
     const s = createInitialState(1);
     const need = Math.ceil(landTiles().length * 0.34);

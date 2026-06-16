@@ -177,6 +177,31 @@ export function aiTurn(state: GameState): void {
   }
 }
 
+// ---- Fog of war (Phase 2) ----
+// Passive "explored" comes from proximity to your land; active "scouted/surveilled"
+// comes from scouting expeditions (stored in state.intel). Effective = max of the two.
+export function visionRange(state: GameState): number {
+  return 2 + (state.research["cartography"] ?? 0) + (state.research["scouting"] ?? 0);
+}
+
+export function buildExplored(state: GameState): Set<string> {
+  const r = visionRange(state);
+  const seen = new Set<string>();
+  for (const t of landTiles()) {
+    if (state.tileOwner[key(t.x, t.y)] !== "player") continue;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const nx = t.x + dx, ny = t.y + dy;
+      if (isLand(nx, ny)) seen.add(key(nx, ny));
+    }
+  }
+  return seen;
+}
+
+/** 0 unknown · 1 explored · 2 scouted · 3 surveilled */
+export function tileVisibility(state: GameState, explored: Set<string>, x: number, y: number): number {
+  return Math.max(state.intel[key(x, y)] ?? 0, explored.has(key(x, y)) ? 1 : 0);
+}
+
 export function tileLoot(state: GameState, ownerId: string): ResourceMap {
   const diff = factionById[ownerId]?.difficulty ?? 1;
   const out: ResourceMap = {};

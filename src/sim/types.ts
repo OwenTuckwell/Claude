@@ -201,6 +201,7 @@ export interface GameState {
   marches: March[];
   aiState: Record<string, AiVillageState>;
   tileOwner: Record<string, string>;   // "x,y" -> faction id (incl. "player", "neutral")
+  intel: Record<string, number>;       // "x,y" -> recon level reached (2 scouted, 3 surveilled)
   reports: SiegeReport[];
   log: LogEntry[];
   nextId: number;
@@ -219,6 +220,7 @@ export type Command =
   | { type: "buy"; resource: ResourceId; amount: number }
   | { type: "sell"; resource: ResourceId; amount: number }
   | { type: "scout" }
+  | { type: "scoutTile"; x: number; y: number }
   | { type: "conquer"; x: number; y: number; army: Record<string, number> };
 
 export interface CommandResult { ok: boolean; error?: string; }

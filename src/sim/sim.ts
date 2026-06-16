@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 const MAX_BUILD_SLOTS = 2;
 
 // ---------- construction helpers ----------
@@ -125,6 +125,7 @@ export function createInitialState(seed = 12345): GameState {
     marches: [],
     aiState,
     tileOwner: initOwnership(),
+    intel: {},
     reports: [],
     log: [{ tick: 0, text: "Your village is founded. Long may it stand.", kind: "info" }],
     nextId: 1,
@@ -221,12 +222,23 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     if (s.tick < mch.arriveTick) return true;
 
     if (mch.phase === "outbound" && mch.kind === "scout") {
-      const loot = rollScoutLoot(s, mods);
+      let loot: ResourceMap = {};
+      let lines: string[];
+      if (mch.targetTile) {
+        // recon: raise this tile's intel level (surveilled if Scouting is high)
+        const level = (s.research["scouting"] ?? 0) >= 3 ? 3 : 2;
+        s.intel[tileKey(mch.targetTile.x, mch.targetTile.y)] = Math.max(s.intel[tileKey(mch.targetTile.x, mch.targetTile.y)] ?? 0, level);
+        lines = [`Your scouts surveil (${mch.targetTile.x},${mch.targetTile.y}).`,
+          level >= 3 ? "Full intel gathered — exact garrison and walls revealed." : "Garrison strength estimated."];
+      } else {
+        loot = rollScoutLoot(s, mods);
+        lines = ["Your scouts comb the wilds beyond the borders.",
+          Object.keys(loot).length ? "They return with a cache of supplies." : "They find little of value this time."];
+      }
       const report: SiegeReport = {
-        id: `r${s.nextId++}`, kind: "scout", tick: s.tick, targetName: "The Wilds",
+        id: `r${s.nextId++}`, kind: "scout", tick: s.tick, targetName: mch.targetName,
         victory: true, breached: false, attackerLosses: {}, defenderLosses: {},
-        loot, lines: ["Your scouts comb the wilds beyond the borders.",
-          Object.keys(loot).length ? "They return with a cache of supplies." : "They find little of value this time."],
+        loot, lines,
       };
       s.reports.unshift(report);
       if (s.reports.length > 30) s.reports.length = 30;
@@ -492,6 +504,24 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         army: {}, phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks,
       });
       log(s, `Scouting party sets out into the wilds.`, "info");
+      return ok();
+    }
+
+    case "scoutTile": {
+      if ((s.research["scouting"] ?? 0) <= 0) return fail("Research Scouting Parties first.");
+      const k = tileKey(cmd.x, cmd.y);
+      if (s.tileOwner[k] === undefined) return fail("Nothing to scout there.");
+      if (s.tileOwner[k] === "player") return fail("That land is already yours.");
+      const cost = balance.scouting.sendCost;
+      if (!canAfford(s.resources, cost)) return fail("Not enough supplies to send scouts.");
+      spend(s.resources, cost);
+      const dist = nearestOwnedTile(s.tileOwner, cmd.x, cmd.y).dist;
+      const travelTicks = Math.max(1, Math.round((dist * balance.conquest.tileTravelPerTile) / (1 + mods.marchSpeedPct)));
+      s.marches.push({
+        id: `m${s.nextId++}`, kind: "scout", targetId: k, targetName: `Scouts → (${cmd.x},${cmd.y})`,
+        army: {}, phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks, targetTile: { x: cmd.x, y: cmd.y },
+      });
+      log(s, `Scouts head out to survey (${cmd.x},${cmd.y}).`, "info");
       return ok();
     }
 
