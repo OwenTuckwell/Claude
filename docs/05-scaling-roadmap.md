@@ -30,6 +30,7 @@ milestones into a concrete, buildable backlog.
 - **O** — Save & migration strategy (migration chain to stop version bumps wiping saves).
 - **P** — Onboarding & tutorial (the inner ring as teacher; a reusable objective system).
 - **Q** — Headless sim & balance harness (the tool that makes all tuning evidence-based).
+- **R** — Visuals & audio (2.5D style + recommendation, free asset pipeline, SFX + music).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1568,3 +1569,97 @@ Tight loop → balance by evidence, not vibes.
 - A **minimal** version lands with **Phase 1** (it's how you tune the I.1 constants —
   Appendix H step 4 references this). Grow its metrics/policies as later systems (tap,
   boosts, prestige) need tuning. Cheap to start, compounding value.
+
+---
+
+# Appendix R — Visuals & audio (Phase 5 "design & feel" detail)
+
+Turning the systemic prototype into something that *looks and sounds* like a real game,
+on the current web stack, before any Unity port. Constraints from the player: **free but
+best** assets, **2.5D**, and **SFX + ambient music**.
+
+## R.1 Art-style comparison (and the recommendation)
+| Style | Look | Pros | Cons |
+|---|---|---|---|
+| **Painterly / realistic** | rich illustrated medieval (Forge of Empires) | premium, atmospheric | hardest to keep consistent across AI-gen assets; heavier; busy on small screens |
+| **Stylized / clean** | bright, readable, lightly cartoonish (Rise of Kingdoms) | best small-screen readability; **most forgiving of AI-asset inconsistency**; scales | can feel "casual" if overdone |
+| **Grounded / muted** | earthy, low-saturation, historical | suits the optimizer/strategy audience; serious tone | muted = lower contrast; needs careful palette to stay readable on mobile |
+
+**Recommendation: Stylized/clean shapes + a grounded, muted palette.** You get the
+mobile readability and AI-consistency of the stylized approach, tinted toward the
+historical, serious tone your strategy audience wants. Concretely: clean isometric forms,
+clear silhouettes, **earthy color palette** (stone greys, timber browns, muted greens,
+heraldic accent colors per faction — reuse the existing faction palette). This is also the
+**most achievable with free/AI assets**, which is the deciding factor.
+
+## R.2 Asset pipeline — free but best (a hybrid)
+No single source is "best"; combine free ones, unified by a style guide (R.6):
+- **AI-generated for hero/unique assets** (buildings, the castle, unit portraits): free/
+  low-cost tools — Higgsfield, Stable Diffusion (local/free), Bing/other free generators.
+  Generate **isometric** assets with a fixed prompt template (angle, lighting, palette) for
+  consistency. **Check commercial-use terms** of whichever generator you use.
+- **Free CC0 asset packs for filler/terrain/UI:** **Kenney.nl** (CC0, excellent isometric
+  + UI + audio), **OpenGameArt** (filter to CC0/CC-BY), itch.io free packs. CC0 = no
+  attribution, safe commercially.
+- **Strategy:** AI for the things that must feel unique (your castle, key buildings); packs
+  for tiles, icons, UI frames, particles. Re-color packs to the R.1 palette so they cohere.
+- **Track licenses** in a `CREDITS.md` from day one (CC-BY needs attribution; CC0 doesn't).
+
+## R.3 2.5D rendering on the web stack
+Current rendering is **SVG, top-down** (`WorldTab` etc.). Moving to 2.5D isometric:
+- **Coordinate transform:** world tile `(x,y)` → screen via isometric projection
+  (`screenX = (x−y)·tileW/2`, `screenY = (x+y)·tileH/2`). The sim/tile model is unchanged —
+  this is purely presentation (protects the sim/UI split).
+- **Renderer:** for many sprites, an SVG DOM gets heavy — consider **canvas** (or a light
+  lib like **PixiJS**, MIT, WebGL-accelerated) for the map/village/castle scenes. Keep
+  React for HUD/menus; the game scene is a canvas inside it.
+- **Z-ordering:** draw back-to-front by `(x+y)` so nearer tiles overlap farther ones; taller
+  buildings extend upward from their tile anchor.
+- **Layering:** terrain tiles → roads/decals → buildings → units → effects → UI overlay.
+
+## R.4 Animation & juice (big feel-per-effort)
+- **Idle life:** flags waving, smoke from chimneys, water shimmer, trees sway (cheap
+  sprite-sheet or shader loops) — a still scene reads as dead; subtle motion reads as alive.
+- **Feedback juice:** resource-collect number pop, build "thunk" + dust, research unlock
+  flourish, level-up/ rank-up fanfare, siege impacts (wall crumble, arrow volleys).
+- **Transitions:** smooth tab/scene changes, button presses, tween camera pans on the map.
+- Prioritize the moments players see most: tap, collect, build-complete, siege.
+
+## R.5 Audio — SFX + ambient music (free sources)
+- **Engine:** **Howler.js** (MIT) over Web Audio — easy sprites, looping, volume,
+  mobile-friendly. Mute/volume settings; respect silent-mode expectations.
+- **SFX list (start small, high-impact):** tap/coin, build-place, build-complete,
+  research-unlock, train-troops, march-out, siege (engine fire, wall break, battle din),
+  victory/defeat sting, rank-up fanfare, button clicks, error buzz.
+- **Ambient music:** 1–3 looping medieval tracks (calm village daytime, tense pre-siege,
+  triumphant) that cross-fade by context. Keep low and unobtrusive — a slow check-in game
+  shouldn't fatigue the ear.
+- **Free sources (check license, prefer CC0):** **Kenney** audio packs (CC0),
+  **Freesound.org** (filter CC0), **OpenGameArt**, **Kevin MacLeod / incompetech** (CC-BY
+  music — attribute), **Sonniss GDC** free SFX bundles. Track attributions in `CREDITS.md`.
+- **Implementation:** a small `audio` module mapping event → sound; UI/sim *events* trigger
+  it (sim stays silent/pure — it emits events/log entries the UI sonifies).
+
+## R.6 The style guide (what keeps free/AI assets coherent)
+The single most important artifact for a hybrid/AI pipeline — a one-page `docs/art-style.md`:
+- **Perspective:** fixed isometric angle (e.g. 2:1 dimetric), one light direction
+  (e.g. top-left), consistent shadow style.
+- **Palette:** the earthy core + faction heraldic accents (hex values listed).
+- **Scale & grid:** tile pixel size; building footprint rules; silhouette/readability rules.
+- **Prompt template** for AI gen (so every generated asset matches angle/lighting/palette).
+- Every asset (AI or pack) is **conformed to this guide** (recolor/trim) before it ships.
+
+## R.7 Scope & phasing (don't boil the ocean)
+1. **Style guide + palette first** (R.6) — cheap, unblocks everything, prevents a mismatched
+   asset pile.
+2. **One scene to vertical-slice the look** — re-skin the **village** in 2.5D as the proof;
+   if it sells the feel, roll the style to castle/world/siege.
+3. **Audio pass** — Howler + the core SFX list + one ambient loop; expand later.
+4. **Juice pass** — the high-frequency feedback animations.
+- All on the web stack; the resulting assets + style carry forward to Unity (Phase 7)
+  unchanged (sprites/audio are portable; only the renderer is re-implemented).
+
+## R.8 Licensing guardrail
+Only ship assets that are **CC0 or explicitly free-for-commercial** (or AI-gen you have
+commercial rights to). Maintain `CREDITS.md`. This protects the project if it ever earns
+revenue (the whole point of the Unity-someday path).
