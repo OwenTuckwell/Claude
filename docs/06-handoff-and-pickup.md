@@ -1,0 +1,90 @@
+# 06 — Handoff & Pickup
+
+Where things stand at the end of the planning session, and exactly how to resume on
+another machine. Read this first when you come back.
+
+## Status: DESIGN complete, BUILD just started
+
+Today was a **planning** session. The full design for taking *Bannerfall* "BIG" is written
+and pushed. Only **one** feature has actually been *built* into the game so far — the new
+colour palette. Everything else is **designed on paper, not yet coded.** That's by design
+(we agreed: plan first, build later).
+
+### Plan vs. Built
+| Thing | Designed & pushed? | Built into the game? | Where it's specced |
+|---|---|---|---|
+| New colour palette (parchment/earthy) | ✅ | ✅ **live on the site** | `art-style.md` |
+| Home **castle** development screen | ✅ | ❌ not coded | Appendix A, L |
+| **Bigger map** + more opponents | ✅ | ❌ not coded | Appendix D, E, N |
+| Scaling **AI** rivals | ✅ | ❌ not coded | Appendix B, C, I |
+| **Fog of war** / scouting | ✅ | ❌ not coded | Appendix G |
+| Tap/market scaling | ✅ | ❌ not coded | Appendix J |
+| Research-tree cleanup | ✅ | ❌ not coded | Appendix K |
+| Prestige / politics / boosts | ✅ | ❌ not coded | Appendix M |
+| Onboarding, save migration, balance harness | ✅ | ❌ not coded | Appendix O, P, Q |
+
+> So "the map is still small / no castle" is expected — those are **build tasks**, waiting
+> in the checklist below. Nothing is missing; the building simply hasn't happened yet.
+
+## The plan, in one place
+- **`docs/05-scaling-roadmap.md`** — 7 phases + 18 appendices (A–R). Start at the
+  **Contents** section, then **Appendix H** (the ordered Phase 1 build checklist).
+- **`docs/art-style.md`** — palette (hex), perspective, the AI-asset prompt template.
+
+## Live prototype
+- **https://OwenTuckwell.github.io/Claude/?v=10** (bump the `?v=` number if your phone
+  shows a stale cached version). Auto-redeploys ~2 min after every push to the branch.
+
+## Before you build: install Node
+Building features means changing TypeScript (sim + UI). You **must** be able to build/test
+locally first, or you risk white-screening the live site.
+- Install Node (the `node-v26.3.0-x64.msi` is in your Downloads, or get the latest LTS).
+- Then in the repo: `npm install`, `npm test` (sim suite), `npm run dev` (local preview).
+
+## Repo location
+- Use **`C:\Dev\Claude`** (a plain local path, NOT inside OneDrive — OneDrive + git
+  conflicts). On a fresh machine: `git clone https://github.com/OwenTuckwell/Claude.git C:\Dev\Claude`.
+- Branch: `claude/stronghold-kingdoms-mobile-90pe4k`.
+
+---
+
+## Pickup prompt — paste this into Claude Code at home
+
+```
+I'm continuing my medieval strategy game "Bannerfall". Repo:
+https://github.com/OwenTuckwell/Claude.git, branch
+claude/stronghold-kingdoms-mobile-90pe4k
+
+Get set up and caught up:
+1. Clone to C:\Dev\Claude (a PLAIN local path, NOT OneDrive). If it already exists, cd in
+   and `git pull` instead.
+2. Confirm Node is installed (`node -v`). If not, tell me — I need it to build/test.
+   Then run `npm install` and `npm test` to confirm the sim suite passes.
+3. Read docs/06-handoff-and-pickup.md (the status), then docs/05-scaling-roadmap.md
+   (the full plan — read the Contents, then the appendices), and docs/art-style.md.
+4. Skim src/sim/ (the pure deterministic core): territory.ts (AI), siege.ts (combat),
+   effects.ts (typed-effect modifiers), persistence.ts (saves), types.ts (GameState).
+
+Context: This is an M1/M2 TypeScript+React prototype. We finished a complete design plan
+(docs/05-scaling-roadmap.md, appendices A–R) but have only BUILT the new colour palette so
+far. The map, castle, scaling AI, fog of war etc. are designed-not-coded. I want to START
+BUILDING now.
+
+Begin with **Appendix H** (Phase 1: scaling AI), Step 1: create src/sim/rivals.ts with the
+geography-derived difficulty/garrison/archetype rules (formulas in Appendix E.4/E.5) plus a
+parity test that the current 9 rivals match content/world.json. Keep all logic in src/sim,
+stay deterministic, run `npm test` after each step, and commit + push each step. When a step
+changes GameState shape, add the save-migration chain from Appendix O so saves aren't wiped.
+Show me Appendix H's checklist and confirm npm test passes before you start coding.
+
+(If I'd rather see something visual first, instead build one of: the bigger map, or the
+castle screen — both are fully specced in the appendices.)
+```
+
+### Alt prompt — if you want ART next instead of code
+```
+Continue Bannerfall at C:\Dev\Claude (git pull first). Read docs/art-style.md. I want to
+generate the first game art following that guide — start with the village buildings (farm,
+woodcutter, quarry, house) using the AI prompt template, isometric, on the documented
+palette. Produce a few options each and tell me how to drop them into the web build.
+```
