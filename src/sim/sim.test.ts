@@ -4,6 +4,8 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
+import { landTiles, key, ownedCount, realmInfo } from "./territory";
+import { world } from "./content";
 import type { GameState } from "./types";
 
 const fresh = () => createInitialState(777);
@@ -115,6 +117,37 @@ describe("market & scouting", () => {
     const after = advance(sent.state, 600); // long enough to go and return
     expect(after.marches.length).toBe(0);
     expect(after.reports.some((r) => r.kind === "scout")).toBe(true);
+  });
+});
+
+describe("territory, conquest & rank", () => {
+  it("starts holding land around the capital, with unclaimed wilds", () => {
+    const s = createInitialState(1);
+    expect(s.tileOwner[key(world.player.tile.x, world.player.tile.y)]).toBe("player");
+    expect(ownedCount(s.tileOwner, "player")).toBeGreaterThanOrEqual(1);
+    expect(Object.values(s.tileOwner).some((o) => o === "neutral")).toBe(true);
+    expect(realmInfo(s).rank).toBe("Peasant");
+  });
+
+  it("conquers a neutral tile with an army", () => {
+    let s: GameState = { ...createInitialState(3), troops: { swordsman: 40, archer: 20 } };
+    const cap = world.player.tile;
+    const neutral = landTiles()
+      .filter((t) => s.tileOwner[key(t.x, t.y)] === "neutral")
+      .sort((a, b) => (Math.abs(a.x - cap.x) + Math.abs(a.y - cap.y)) - (Math.abs(b.x - cap.x) + Math.abs(b.y - cap.y)))[0];
+    const r = applyCommand(s, { type: "conquer", x: neutral.x, y: neutral.y, army: { swordsman: 40, archer: 20 } });
+    expect(r.result.ok).toBe(true);
+    const after = advance(r.state, 120);
+    expect(after.tileOwner[key(neutral.x, neutral.y)]).toBe("player");
+    expect(after.reports.some((rep) => rep.kind === "conquer" && rep.victory)).toBe(true);
+  });
+
+  it("crowns the faction holding a third of the realm as King", () => {
+    const s = createInitialState(1);
+    const need = Math.ceil(landTiles().length * 0.34);
+    landTiles().slice(0, need).forEach((t) => { s.tileOwner[key(t.x, t.y)] = "player"; });
+    expect(realmInfo(s).isKing).toBe(true);
+    expect(realmInfo(s).rank).toBe("King");
   });
 });
 

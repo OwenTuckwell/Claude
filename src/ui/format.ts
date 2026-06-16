@@ -11,9 +11,11 @@ export const RESOURCE_META: Record<ResourceId, { label: string; icon: string }> 
 };
 
 export const BUILDING_ICONS: Record<string, string> = {
-  farm: "🌾", woodcutters_lodge: "🌲", quarry: "🪨", iron_mine: "⛏️",
-  hovel: "🛖", granary: "🏚️", stockpile: "📦", chapel: "⛪", scholars_hall: "📚",
-  barracks: "🏯", archery_range: "🎯", siege_workshop: "🪚", wall: "🧱", tower: "🗼",
+  farm: "🌾", windmill: "🌬️", woodcutters_lodge: "🌲", quarry: "🪨", iron_mine: "⛏️",
+  hovel: "🛖", granary: "🏚️", stockpile: "📦", warehouse: "🏬", chapel: "⛪", tavern: "🍺",
+  scholars_hall: "📚", university: "🎓", marketplace: "🏪",
+  barracks: "🏯", archery_range: "🎯", blacksmith: "🔨", siege_workshop: "🪚",
+  wall: "🧱", tower: "🗼", watchtower: "🏰",
 };
 
 export function fmt(n: number): string {

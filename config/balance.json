@@ -36,5 +36,12 @@
     "sendCost": { "food": 20 },
     "baseLoot": { "wood": 40, "stone": 25, "iron": 8, "gold": 15 },
     "lootPctPerRank": 0.5
+  },
+  "conquest": {
+    "aiTurnTicks": 240,
+    "kingThresholdPct": 0.33,
+    "tileTravelPerTile": 12,
+    "patrolPerDifficulty": 3,
+    "tileLootPerDifficulty": { "wood": 30, "stone": 20, "iron": 8, "gold": 20 }
   }
 }

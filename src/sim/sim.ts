@@ -5,13 +5,14 @@ import { balance, buildingById, troopById, aiById, world, researchById } from ".
 import { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
+import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot } from "./territory";
 import type {
   BuildingDef, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 const MAX_BUILD_SLOTS = 2;
 const BASE_MARCH_TILES_PER_TICK = 0.5;
 
@@ -118,9 +119,11 @@ export function createInitialState(seed = 12345): GameState {
     trainQueue: [],
     marches: [],
     aiState,
+    tileOwner: initOwnership(),
     reports: [],
     log: [{ tick: 0, text: "Your village is founded. Long may it stand.", kind: "info" }],
     nextId: 1,
+    lastAiTurn: 0,
   };
 }
 
@@ -227,6 +230,43 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       return true;
     }
 
+    if (mch.phase === "outbound" && mch.kind === "conquer" && mch.targetTile) {
+      const { x, y } = mch.targetTile;
+      const def = defenderForTile(s.tileOwner, x, y);
+      const outcome = resolveSiege(mch.army, { garrison: def.garrison, fortifications: def.fortifications }, mods, s.rngState);
+      s.rngState = outcome.rngState;
+      let loot: ResourceMap = {};
+      if (outcome.victory) {
+        if (def.isCapital) {
+          // capital falls: faction is broken, its lands revert to neutral
+          const fallenId = def.ownerId;
+          for (const k of Object.keys(s.tileOwner)) if (s.tileOwner[k] === fallenId) s.tileOwner[k] = "neutral";
+          s.tileOwner[tileKey(x, y)] = "player";
+          loot = { ...(aiById[fallenId]?.loot ?? {}) };
+          log(s, `${aiById[fallenId]?.name ?? "A rival"} has fallen! Their capital is yours.`, "war");
+        } else {
+          s.tileOwner[tileKey(x, y)] = "player";
+          loot = tileLoot(s, def.ownerId);
+          log(s, `You claimed the land at (${x},${y}).`, "war");
+        }
+      } else {
+        log(s, `Your conquest at (${x},${y}) was thrown back.`, "bad");
+      }
+      const report: SiegeReport = {
+        id: `r${s.nextId++}`, kind: "conquer", tick: s.tick, targetName: `(${x},${y})`,
+        victory: outcome.victory, breached: outcome.breached,
+        attackerLosses: outcome.attackerLosses, defenderLosses: outcome.defenderLosses,
+        loot, lines: outcome.lines,
+      };
+      s.reports.unshift(report);
+      if (s.reports.length > 30) s.reports.length = 30;
+      const survivors = outcome.attackerSurvivors;
+      if (!Object.values(survivors).some((c) => c > 0)) return false;
+      mch.phase = "returning"; mch.army = survivors; mch.loot = loot;
+      mch.reportId = report.id; mch.arriveTick = s.tick + mch.travelTicks;
+      return true;
+    }
+
     if (mch.phase === "outbound") {
       const ai = aiById[mch.targetId];
       const defender: SiegeDefender = {
@@ -268,7 +308,8 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     return false;
   });
 
-  // AI villages have static garrisons in M1; lootedUntilTick gates re-looting (regrowth).
+  // Rival factions expand and raid the player's borders on an interval.
+  aiTurn(s);
 
   s.tick += 1;
 }
@@ -447,6 +488,31 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         army: {}, phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks,
       });
       log(s, `Scouting party sets out into the wilds.`, "info");
+      return ok();
+    }
+
+    case "conquer": {
+      const k = tileKey(cmd.x, cmd.y);
+      const owner = s.tileOwner[k];
+      if (owner === undefined) return fail("That is open sea, not land.");
+      if (owner === "player") return fail("You already hold that land.");
+      let total = 0;
+      for (const [id, c] of Object.entries(cmd.army)) {
+        if (c < 0) return fail("Bad army.");
+        if ((s.troops[id] ?? 0) < c) return fail("Not enough troops.");
+        total += c;
+      }
+      if (total <= 0) return fail("Send at least one unit.");
+      for (const [id, c] of Object.entries(cmd.army)) if (c > 0) s.troops[id] -= c;
+      const dist = Math.max(Math.abs(cmd.x - world.player.tile.x), Math.abs(cmd.y - world.player.tile.y));
+      const speed = 1 + mods.marchSpeedPct;
+      const travelTicks = Math.max(1, Math.round((dist * balance.conquest.tileTravelPerTile) / speed));
+      s.marches.push({
+        id: `m${s.nextId++}`, kind: "conquer", targetId: k, targetName: `(${cmd.x},${cmd.y})`,
+        army: Object.fromEntries(Object.entries(cmd.army).filter(([, c]) => c > 0)),
+        phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks, targetTile: { x: cmd.x, y: cmd.y },
+      });
+      log(s, `Your army marches to conquer (${cmd.x},${cmd.y}).`, "war");
       return ok();
     }
   }

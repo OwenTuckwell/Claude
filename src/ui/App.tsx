@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { balance } from "../sim/content";
 import { happiness, housingCap, netProduction, storageCaps } from "../sim/sim";
+import { realmInfo } from "../sim/territory";
 import { RESOURCE_IDS, type RationLevel } from "../sim/types";
 import { exportSave, importSave, resetSave } from "../host/persistence";
 import { useGame } from "./useGame";
@@ -60,6 +61,7 @@ export function App() {
               onChange={(e) => dispatch({ type: "setTax", rate: Number(e.target.value) })} />
           </label>
           <span className={"happy " + (h >= 0 ? "pos" : "neg")}>{h >= 0 ? "🙂" : "☹️"} {h}</span>
+          <span className="pop" title="Your rank, by land held">👑 {realmInfo(state).rank}</span>
         </div>
       </div>
 

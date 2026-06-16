@@ -98,6 +98,13 @@ export interface Balance {
     baseLoot: ResourceMap;        // expected loot at rank 1 (randomised ±)
     lootPctPerRank: number;       // extra loot fraction per scouting rank
   };
+  conquest: {
+    aiTurnTicks: number;          // how often AI factions act
+    kingThresholdPct: number;     // land share needed to hold the Crown
+    tileTravelPerTile: number;    // march ticks per tile distance
+    patrolPerDifficulty: number;  // garrison size scaler for non-capital tiles
+    tileLootPerDifficulty: ResourceMap; // loot when taking a normal tile
+  };
 }
 
 export interface AiVillageDef {
@@ -114,6 +121,15 @@ export interface WorldDef {
   land: string[];
   player: { tile: { x: number; y: number } };
   aiVillages: AiVillageDef[];
+}
+
+export interface Faction {
+  id: string;
+  name: string;
+  color: string;
+  isPlayer?: boolean;
+  capital: { x: number; y: number };
+  difficulty: number;
 }
 
 // ---- Mutable game state (serializable; this is the save format) ----
@@ -180,9 +196,11 @@ export interface GameState {
   trainQueue: TrainOrder[];
   marches: March[];
   aiState: Record<string, AiVillageState>;
+  tileOwner: Record<string, string>;   // "x,y" -> faction id (incl. "player", "neutral")
   reports: SiegeReport[];
   log: LogEntry[];
   nextId: number;
+  lastAiTurn: number;
 }
 
 export type Command =
@@ -196,6 +214,7 @@ export type Command =
   | { type: "tap" }
   | { type: "buy"; resource: ResourceId; amount: number }
   | { type: "sell"; resource: ResourceId; amount: number }
-  | { type: "scout" };
+  | { type: "scout" }
+  | { type: "conquer"; x: number; y: number; army: Record<string, number> };
 
 export interface CommandResult { ok: boolean; error?: string; }

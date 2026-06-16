@@ -16,12 +16,12 @@ export function ChronicleTab({ state }: { state: GameState }) {
           <div className="report" key={r.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8 }}>
             <div className="row">
               <strong style={{ color: r.victory ? "var(--good)" : "var(--bad)" }}>
-                {r.kind === "scout" ? "🧭 Scouting" : r.victory ? "Victory" : "Repelled"} — {r.targetName}
+                {r.kind === "scout" ? "🧭 Scouting" : r.kind === "conquer" ? (r.victory ? "🚩 Conquest" : "🚩 Conquest failed") : r.victory ? "Victory" : "Repelled"} — {r.targetName}
               </strong>
-              {r.kind === "assault" && <span className="tag">{r.breached ? "walls breached" : "walls held"}</span>}
+              {r.kind !== "scout" && <span className="tag">{r.breached ? "walls breached" : "walls held"}</span>}
             </div>
             <div className="lines">{r.lines.map((l, i) => <div key={i}>· {l}</div>)}</div>
-            {r.kind === "assault" && (
+            {r.kind !== "scout" && (
               <div className="cost">Our losses: {lossLabel(r.attackerLosses)} · Enemy losses: {lossLabel(r.defenderLosses)}</div>
             )}
             {Object.keys(r.loot).length > 0 && (
