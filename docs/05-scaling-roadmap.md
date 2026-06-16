@@ -28,6 +28,7 @@ milestones into a concrete, buildable backlog.
 - **M** — Phase 4 long-arc progression (prestige/rebirth, parishes/sheriffs, steward boosts).
 - **N** — Procedural land generation & the medieval name pool (completes the generator).
 - **O** — Save & migration strategy (migration chain to stop version bumps wiping saves).
+- **P** — Onboarding & tutorial (the inner ring as teacher; a reusable objective system).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1449,3 +1450,63 @@ save made in the web build loads in Unity and vice-versa. Keeping migrators pure
   step 3) — that's the moment the wipe behavior would first hurt, and it's cheap to add.
 - Until then it's noted; don't retrofit elaborate migration onto throwaway prototype saves,
   but **do** put the chain in place the first time a bump matters.
+
+---
+
+# Appendix P — Onboarding & tutorial (teach a deep game gently)
+
+*Bannerfall* is intentionally deep (interacting economy/happiness/research/siege). A new
+player must not drown. The trick: **the game already contains its own teachers** — don't
+build a separate scripted sandbox, guide the player through the real early game.
+
+## P.1 Principle — the inner ring IS the tutorial
+Appendix C.2 designed the three closest rivals as lessons:
+- **Stormhold (aggressor, closest)** → teaches **defend** (it raids you early).
+- **Westvale (economic)** → teaches **act/grow** (ignore it and it snowballs).
+- **Highfort (turtle)** → teaches **bring siege engines** (you can't breach without them, F.1).
+
+So the first ~hour of normal play, lightly guided, covers every core lesson. Onboarding =
+**a guided overlay on the real game**, not a fake level.
+
+## P.2 Structure — staged objectives (not a wall of text)
+A small **quest/objective system** (which also seeds Phase 4 realm-goals, M.2-adjacent)
+drives a gentle sequence; each step unlocks the next and gives a tiny reward:
+1. **Feed your people** — build a farm; watch food/happiness. (Teaches production + the
+   ration dial.)
+2. **Grow** — reach a population target; build housing. (Population → labour loop.)
+3. **Research** — build a civic building, spend RP on a first node. (The tree exists.)
+4. **Raise a militia** — research `militia`, train spearmen. (Military basics.)
+5. **Defend** — survive/repel Stormhold's first raid. (The aggressor teaches defense.)
+6. **Scout** — send scouts, read intel on a neighbour. (Recon, Phase 2.)
+7. **Siege** — research `siegecraft`, build catapults, take **Highfort**. (The capstone
+   lesson: siege engines + the assault flow.)
+Each step = one short check-in, matching the session shape in `00`.
+
+## P.3 Delivery — contextual, skippable, diegetic
+- **A steward/advisor voice** frames objectives in-world ("My lord, the granary stands
+  empty…") — fits the medieval tone, less "tutorial popup."
+- **Just-in-time tips:** a hint appears when a system first becomes relevant (first time
+  happiness drops, first time storage caps), not all up front.
+- **Always skippable** for veterans; objectives remain as optional goals.
+- **Highlight the relevant UI** (pulse the build button, the research tab) rather than
+  explaining in prose.
+
+## P.4 Anti-frustration tuning for the first session
+- Soften the inner ring during onboarding: Stormhold's first raid is **survivable by
+  design** (telegraphed, small) — a lesson, not a punishment. Reuse the B.7 telegraph +
+  cooldown so the first aggression is readable.
+- Generous starting resources / a slightly faster first few timers so step 1–3 don't stall
+  on slow economy (the prototype already speeds time; keep the first session brisk).
+
+## P.5 Integration & scope
+- The **objective system** is reusable: onboarding quests now, realm-goals/achievements in
+  Phase 4 (M), daily goals for the boost economy (M.3). Build it once, data-driven
+  (`content/quests.json`: id, trigger, completion check, reward, next).
+- Pure-ish: completion checks read sim state; rewards are commands/effects. Keep the
+  *checks* deterministic; the *presentation* lives in UI.
+- **Lands in Phase 5 (design & feel)** alongside the art/juice pass — onboarding + polish
+  are what turn "a systemic prototype" into "a game a stranger can pick up."
+
+## P.6 Done when
+A first-time player, given no external explanation, can reach "took my first enemy keep"
+within a session or two, understanding *why* at each step — and a veteran can skip it all.
