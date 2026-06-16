@@ -964,3 +964,70 @@ deterministic and covered by golden-state tests. Then move to **Phase 2 (Appendi
 > Note: the world generator (Appendix E) is **not required** for Phase 1 — it works on the
 > current 9-rival map. Build the generator when you actually want the bigger map; Steps 1–2
 > here make that a clean drop-in because rival data is already rule-derived.
+
+---
+
+# Appendix I — Phase 1 starting balance constants
+
+Concrete first numbers so Steps 4/6 aren't blocked on guessing. **All "tune via headless
+sim" — these are sane starting points, not final.** Today's `conquest` block:
+`aiTurnTicks: 240`, `kingThresholdPct: 0.33`, `tileTravelPerTile: 12`,
+`patrolPerDifficulty: 3`. Garrisons run ~9–24 troops (E.4); use that as the strength scale.
+
+## I.1 Proposed `aiScaling` block (add to `config/balance.json`)
+```jsonc
+"aiScaling": {
+  // "Strength" is measured like factionAttackPower today (~6 + tiles*1.5 + diff*6),
+  // and the player index P uses the same scalar (see I.2).
+  "bandFactorByArchetype": {        // AI targets strength ~= P * this
+    "turtle":    0.85,              // weaker offense, but invests in forts (I.3)
+    "aggressor": 1.05,              // a step ahead in army to actually pressure you
+    "economic":  1.00               // tracks you, snowballs if you stall (I.3)
+  },
+  "difficultyBandBonus": 0.08,      // + per difficulty level above 1 (far rings tougher)
+  "bandFloor": 0.45,               // even a dominant player faces this * P resistance
+  "bandCeil": 1.6,                 // AI can't exceed this * P (anti-frustration cap)
+  "maxStrengthDeltaPerTurn": 0.06, // max fractional strength change per AI turn (smooth)
+  "reinvestSplit": {                // how grown economy is spent, by archetype
+    "turtle":    { "army": 0.35, "fort": 0.65 },
+    "aggressor": { "army": 0.75, "fort": 0.25 },
+    "economic":  { "army": 0.50, "fort": 0.50 }
+  },
+  "economyGrowthPerTurn": {         // base economy gain per AI turn, by archetype
+    "turtle": 0.6, "aggressor": 0.5, "economic": 0.9
+  },
+  "siege": {
+    "playerSiegeCooldownTurns": 6,  // min AI-turns between sieges vs the player (per faction)
+    "maxSimultaneousThreats": 2,    // max factions actively sieging the player at once
+    "minStrengthToSiege": 0.9       // faction must be >= this * (player border defense) to try
+  }
+}
+```
+
+## I.2 Player progression index `P` (starting formula)
+A single scalar summarizing player strength, comparable to faction strength:
+```
+P = tilesOwned * 1.5
+  + totalResearchRanks * 0.8
+  + fieldArmyPower * 1.0          // sum over troops of count*(atk+def)*0.5 (matches territory.ts)
+  + castleDefensePower * 0.5      // playerDefensePower() (territory.ts:97), once castles exist
+  + 6                            // base, mirrors factionAttackPower's constant
+```
+Weights are the first knobs to tune; keep P in the same units as `factionAttackPower` so
+`bandFactor * P` is directly comparable to a faction's strength.
+
+## I.3 How the archetypes feel with these numbers
+- **Turtle (0.85 band, 65% into forts):** lower attack power than you, but `fortLevel`
+  climbs — so it rarely raids you yet becomes a *hard keep to crack* (needs siege engines,
+  F.1). Matches "a tough nut you choose to crack."
+- **Aggressor (1.05 band, 75% into army):** stays a touch ahead in offense and spends on
+  army → actually launches sieges at you (Step 6), throttled by the cooldown so it
+  pressures without swarming.
+- **Economic (1.00 band, 0.9 growth):** highest economy growth → if you stall, it drifts
+  toward `bandCeil` and becomes the runaway Crown threat (Brookmere). Punishes passivity.
+
+## I.4 Tuning method (Phase 4, but note now)
+Build a tiny **headless harness** (run the sim N turns with no UI, log P and each
+faction's strength over time). Verify: factions track inside `[bandFloor, bandCeil] * P`;
+no runaway; a passive player is overtaken within a believable window; an active player
+stays ahead. Adjust the I.1 constants from those curves.
