@@ -799,3 +799,80 @@ matters** — scaling the map automatically deepens an otherwise-minor branch.
   encodes the ladder.
 - When adding the 100+ nodes (Phase 4), slot each new node into a ring tier so the tree
   grows *with* the rings rather than as a flat blob.
+
+---
+
+# Appendix G — Phase 2 detail (fog of war & reconnaissance)
+
+Turns scouting from a loot button into an **intel system** that hides the world until you
+explore it — the feature that makes a big map (Appendix D/E) feel like discovery.
+
+## G.1 What exists today (reuse, don't rebuild)
+- A `scout` command (`sim.ts:480`) sends a march to "the wilds" and returns **loot**
+  (`rollScoutLoot`, `sim.ts:143`); travel time scales with `scouting` rank + march speed
+  (`scoutTravelTicks`, `sim.ts:156`).
+- Marches are a general system (`kind: "assault" | "scout" | "conquer"`) with outbound/
+  return phases — a scout-to-a-target reuses this directly.
+- `scout_vision_flat` is a **defined-but-unused** effect type (`types.ts:39`) — the hook
+  for vision range. `scout_yield_pct` already scales loot.
+- **Gap:** no visibility state; all rivals' garrisons/forts are fully visible already.
+
+## G.2 Visibility state model
+Add a per-tile visibility map to `GameState` (sparse — store only non-`unknown`):
+`visibility: Record<"x,y", { level: VisLevel; asOfTick: number }>`.
+
+| Level | The player sees | How obtained |
+|---|---|---|
+| `unknown` | nothing (dark tile) | default |
+| `explored` | terrain + owner (faction name/color) | passive: tiles adjacent to owned land; cheap scouting |
+| `scouted` | + **fuzzed** garrison & fort strength (ranges) | a scout expedition to the target |
+| `surveilled` | + exact garrison, fort layout, economy estimate | repeated/deep scouting; high rank |
+
+**Decay:** intel ages. After `intelFreshTicks`, a `surveilled`/`scouted` tile drops one
+level (data goes stale) so recon is ongoing, not one-and-done. `asOfTick` drives a
+staleness indicator in the UI.
+
+## G.3 Scouting as a scaling action
+- Extend the `scout` command with a **target** (`tile:x,y` or a faction capital), not just
+  "wilds". Outbound march → on arrival, raise that target's visibility level → return.
+- **Difficulty scales with the ring (reuses E difficulty):**
+  - Inner/neutral tiles: easy — one cheap scout reaches `scouted`/`surveilled`.
+  - Outer/far enemy capitals: **hard** — deeper intel needs higher `scouting` rank, more
+    scouts, or repeated trips; high-difficulty targets can **partially fail** (you get
+    only fuzzed `scouted`, not `surveilled`) or get scouts **caught** (lose the cost,
+    optionally alert/anger the rival).
+  - Success roll is deterministic (seeded RNG) vs a target difficulty derived from the
+    ring and the rival's `fortLevel`.
+- **Progression hooks:** `scouting` rank → vision range (wire up `scout_vision_flat`),
+  intel accuracy (less fuzz), travel speed, and success vs hard targets. `foraging`
+  remains the loot-flavored branch.
+
+## G.4 Fuzzing (so partial intel feels real)
+At `scouted`, report **ranges** not exact numbers (e.g. "~15–20 spearmen", "walls: strong")
+derived deterministically from the true value ± a band that **shrinks with `scouting`
+rank**. At `surveilled`, report exact values. Fuzz is seeded so re-reads are consistent
+until intel refreshes.
+
+## G.5 Integration with the rest of the design
+- **Pre-siege planning:** the assault screen reads current intel; attacking a merely
+  `explored` keep is a gamble (you don't know their garrison) — strong incentive to scout
+  first, and a real use for the logistics branch (F.4).
+- **Bigger map:** far rings start `unknown`; the map literally lights up as you expand —
+  discovery is the carrot that pulls you outward through the rings.
+- **AI awareness (optional later):** rivals could have their own intel on you, gating when
+  aggressors decide to strike — keep simple for now.
+
+## G.6 UI
+- World map: `unknown` tiles dark/blank; `explored` show owner color; `?` markers on
+  unscouted enemies; staleness shading on aging intel.
+- Target panel shows **only what's known**, with confidence ("intel 3 days old").
+
+## G.7 Tests
+- Visibility transitions + decay deterministic; fuzz band shrinks with rank; hard-target
+  success scales with ring/rank; pre-siege screen uses the right (possibly stale) data.
+
+## G.8 Build order note
+Phase 2 pairs naturally **right after Phase 1** (smarter rivals are more interesting when
+you must scout to learn about them) and **before the big-map work pays off** — but it
+depends only on the march system that already exists, so it can also be built
+independently if desired.
