@@ -12,7 +12,6 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   const [sel, setSel] = useState<string | null>(null);
   const [army, setArmy] = useState<Record<string, number>>({});
   const { w, h } = world.gridSize;
-  const aiAt = new Map(world.aiVillages.map((v) => [`${v.tile.x},${v.tile.y}`, v]));
   const isLand = (x: number, y: number) => world.land[y]?.[x] === "#";
 
   const village = sel ? aiById[sel] : null;
@@ -22,21 +21,30 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
     <div className="list">
       <div className="card">
         <h3>The realm</h3>
-        <div className="map sea-map" style={{ gridTemplateColumns: `repeat(${w}, 1fr)` }}>
-          {Array.from({ length: w * h }, (_, i) => {
-            const x = i % w, y = Math.floor(i / w);
-            const land = isLand(x, y);
-            const isPlayer = x === world.player.tile.x && y === world.player.tile.y;
-            const ai = aiAt.get(`${x},${y}`);
-            const looted = ai ? state.tick < state.aiState[ai.id].lootedUntilTick : false;
-            // light coast shading: land tile next to sea
-            const coast = land && (!isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1));
+        {/* SVG map (reliable sizing — no CSS aspect-ratio). Markers overlaid in HTML. */}
+        <div className="realm-wrap" style={{ position: "relative" }}>
+          <svg className="realm-svg" width={w * 20} height={h * 20} viewBox={`0 0 ${w} ${h}`}
+            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8, background: "#21466e" }}>
+            {Array.from({ length: w * h }, (_, i) => {
+              const x = i % w, y = Math.floor(i / w);
+              if (!isLand(x, y)) return null;
+              const coast = !isLand(x - 1, y) || !isLand(x + 1, y) || !isLand(x, y - 1) || !isLand(x, y + 1);
+              return <rect key={i} x={x} y={y} width={1} height={1}
+                fill={(x + y) % 2 ? "#46602e" : "#425a2b"}
+                stroke={coast ? "rgba(228,212,150,0.25)" : "none"} strokeWidth={coast ? 0.06 : 0} />;
+            })}
+          </svg>
+          {/* player + enemy keep markers */}
+          {[{ tile: world.player.tile, player: true, id: "player", name: "Your realm", difficulty: 0 },
+            ...world.aiVillages].map((m: any) => {
+            const looted = !m.player && state.tick < (state.aiState[m.id]?.lootedUntilTick ?? 0);
             return (
-              <div key={i}
-                className={"mcell " + (land ? "land" : "water") + (coast ? " coast" : "") + (ai ? " ai" : "") + (looted ? " looted" : "") + (sel && ai?.id === sel ? " sel" : "")}
-                title={ai?.name ?? (isPlayer ? "Your realm" : "")}
-                onClick={() => ai && setSel(ai.id)}>
-                {isPlayer ? "🏰" : ai ? (ai.difficulty >= 3 ? "🛡️" : "⚔️") : ""}
+              <div key={m.id}
+                className={"keep-mark" + (m.player ? " me" : "") + (sel === m.id ? " sel" : "") + (looted ? " looted" : "")}
+                style={{ left: `${((m.tile.x + 0.5) / w) * 100}%`, top: `${((m.tile.y + 0.5) / h) * 100}%` }}
+                title={m.name}
+                onClick={() => !m.player && setSel(m.id)}>
+                {m.player ? "🏰" : m.difficulty >= 3 ? "🛡️" : "⚔️"}
               </div>
             );
           })}

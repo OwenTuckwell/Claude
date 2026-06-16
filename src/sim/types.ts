@@ -136,20 +136,21 @@ export interface TrainOrder {
 
 export interface March {
   id: string;
-  kind: "assault" | "scout";
-  targetId: string;          // ai village id, or "wilds" for a scouting expedition
+  kind: "assault" | "scout" | "conquer";
+  targetId: string;          // ai village id, "wilds" (scout), or "tile:x,y" (conquer)
   targetName: string;
   army: Record<string, number>;
   phase: "outbound" | "returning";
   arriveTick: number;
   travelTicks: number;
+  targetTile?: { x: number; y: number };
   loot?: ResourceMap;
   reportId?: string;
 }
 
 export interface SiegeReport {
   id: string;
-  kind: "assault" | "scout";
+  kind: "assault" | "scout" | "conquer";
   tick: number;
   targetName: string;
   victory: boolean;
