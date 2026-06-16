@@ -152,6 +152,18 @@
         { "type": "march_speed_pct", "target": "global", "valuePerRank": 0.1 },
         { "type": "scout_vision_flat", "target": "global", "valuePerRank": 1 }
       ]
+    },
+    {
+      "id": "scouting",
+      "name": "Scouting Parties",
+      "branch": "logistics",
+      "maxRank": 4,
+      "rpCostBase": 55,
+      "rpCostGrowth": 1.7,
+      "requires": { "research": [], "buildingLevels": {} },
+      "effects": [
+        { "type": "scout_yield_pct", "target": "global", "valuePerRank": 0.5 }
+      ]
     }
   ]
 }

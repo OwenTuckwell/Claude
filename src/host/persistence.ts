@@ -8,10 +8,10 @@ import type { GameState } from "../sim/types";
 const KEY = "bannerfall.save.v1";
 const REALTIME_KEY = "bannerfall.lastWallClock";
 
-// Prototype speed-up: how many game ticks elapse per real second of play. With
-// tickLengthSec = 60, a value of 1 means time runs ~60x faster than "real" — keeping a
-// demo session lively while the design-time economy numbers stay intact.
-export const TICKS_PER_REAL_SECOND = 1;
+// How many game ticks elapse per real second of play. With tickLengthSec = 60, a value
+// of 0.15 means ~9x real time — deliberately slow (a check-in game), leaning on offline
+// catch-up and the active tap-market for forward progress.
+export const TICKS_PER_REAL_SECOND = 0.15;
 
 export interface SaveEnvelope { state: GameState; wallClock: number; }
 

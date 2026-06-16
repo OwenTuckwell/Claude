@@ -1,9 +1,9 @@
 {
-  "$comment": "Tunable balance constants for Bannerfall. See docs/02-economy-and-balance.md.",
+  "$comment": "Tunable balance constants for Bannerfall. See docs/02-economy-and-balance.md. Tuned for a deliberately slow, check-in economy: low passive output, generous offline catch-up, with the tap-market and scouting as the active levers.",
   "tickLengthSec": 60,
-  "maxCatchUpTicks": 1440,
-  "foodPerCapitaPerTick": 0.15,
-  "baseTaxYieldPerCapita": 0.5,
+  "maxCatchUpTicks": 20160,
+  "foodPerCapitaPerTick": 0.08,
+  "baseTaxYieldPerCapita": 0.4,
   "rationTable": { "half": 0.5, "normal": 1.0, "generous": 1.5, "double": 2.0 },
   "rationHappiness": { "half": -4, "normal": 0, "generous": 4, "double": 8 },
   "taxHappiness": [
@@ -15,13 +15,26 @@
     { "rate": 0.5, "happiness": -12 },
     { "rate": 0.6, "happiness": -16 }
   ],
-  "popGrowthPerHappyPointPerTick": 0.002,
+  "popGrowthPerHappyPointPerTick": 0.0015,
   "popDeclinePerTick": 0.01,
   "starvationDeclinePerTick": 0.05,
   "crowdingPenaltyPerPctOver": 20,
   "skeletonStaffing": 0.15,
-  "baseStorage": { "food": 400, "wood": 400, "stone": 300, "iron": 150, "gold": 100000, "rp": 100000 },
-  "startingResources": { "food": 200, "wood": 200, "stone": 100, "iron": 30, "gold": 50, "rp": 0 },
-  "startingPopulation": 18,
-  "buildTimeReductionCap": 0.6
+  "baseStorage": { "food": 300, "wood": 250, "stone": 180, "iron": 90, "gold": 100000, "rp": 100000, "token": 100000 },
+  "startingResources": { "food": 80, "wood": 70, "stone": 20, "iron": 5, "gold": 10, "rp": 0, "token": 0 },
+  "startingPopulation": 14,
+  "buildTimeReductionCap": 0.6,
+  "productionScale": 0.4,
+  "market": {
+    "tokensPerTap": 1,
+    "buyPriceTokens": { "food": 1, "wood": 1, "stone": 2, "iron": 5, "gold": 3 },
+    "sellPriceTokens": { "food": 0.3, "wood": 0.3, "stone": 0.5, "iron": 1.5, "gold": 0 }
+  },
+  "scouting": {
+    "baseTravelTicks": 240,
+    "travelTicksPerRankReduction": 40,
+    "sendCost": { "food": 20 },
+    "baseLoot": { "wood": 40, "stone": 25, "iron": 8, "gold": 15 },
+    "lootPctPerRank": 0.5
+  }
 }

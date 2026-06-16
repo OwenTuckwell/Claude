@@ -6,18 +6,20 @@ import { exportSave, importSave, resetSave } from "../host/persistence";
 import { useGame } from "./useGame";
 import { fmt, fmtRate, RESOURCE_META } from "./format";
 import { VillageTab } from "./tabs/VillageTab";
+import { MarketTab } from "./tabs/MarketTab";
 import { ResearchTab } from "./tabs/ResearchTab";
 import { MilitaryTab } from "./tabs/MilitaryTab";
 import { WorldTab } from "./tabs/WorldTab";
 import { ChronicleTab } from "./tabs/ChronicleTab";
 
-type Tab = "village" | "research" | "military" | "world" | "chronicle";
+type Tab = "village" | "market" | "research" | "military" | "world" | "chronicle";
 const TABS: { id: Tab; label: string }[] = [
   { id: "village", label: "🏰 Village" },
+  { id: "market", label: "🎟️ Market" },
   { id: "research", label: "📜 Research" },
   { id: "military", label: "⚔️ Army" },
   { id: "world", label: "🗺️ World" },
-  { id: "chronicle", label: "📖 Chronicle" },
+  { id: "chronicle", label: "📖 Log" },
 ];
 
 export function App() {
@@ -38,7 +40,7 @@ export function App() {
             <div className="res" key={r}>
               <div className="ic">{RESOURCE_META[r].icon}</div>
               <div className="val">{fmt(state.resources[r])}</div>
-              {r !== "gold" && r !== "rp" && <div className="muted" style={{ fontSize: 9 }}>/{fmt(caps[r])}</div>}
+              {r !== "gold" && r !== "rp" && r !== "token" && <div className="muted" style={{ fontSize: 9 }}>/{fmt(caps[r])}</div>}
               <div className={"rate " + (net[r] >= 0 ? "pos" : "neg")}>{fmtRate(net[r])}</div>
             </div>
           ))}
@@ -71,6 +73,7 @@ export function App() {
 
       <div className="content">
         {tab === "village" && <VillageTab state={state} mods={mods} dispatch={dispatch} />}
+        {tab === "market" && <MarketTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "research" && <ResearchTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "military" && <MilitaryTab state={state} mods={mods} dispatch={dispatch} />}
         {tab === "world" && <WorldTab state={state} dispatch={dispatch} />}

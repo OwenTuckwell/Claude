@@ -12,6 +12,7 @@ export interface Modifiers {
   happinessFlat: number;
   defenseHealthPct: number;                 // fortification HP bonus
   marchSpeedPct: number;
+  scoutYieldPct: number;
   troopStatPct: Record<string, { attack: number; defense: number; health: number }>;
   unlockedBuildings: Set<string>;
   unlockedTroops: Set<string>;
@@ -24,7 +25,7 @@ function emptyTroopStat() {
 export function computeModifiers(state: GameState): Modifiers {
   const m: Modifiers = {
     productionPct: {}, storageCapPct: {}, taxYieldPct: 0, buildTimePct: 0,
-    happinessFlat: 0, defenseHealthPct: 0, marchSpeedPct: 0, troopStatPct: {},
+    happinessFlat: 0, defenseHealthPct: 0, marchSpeedPct: 0, scoutYieldPct: 0, troopStatPct: {},
     unlockedBuildings: new Set(), unlockedTroops: new Set(),
   };
 
@@ -43,6 +44,7 @@ export function computeModifiers(state: GameState): Modifiers {
         case "happiness_flat": m.happinessFlat += perRank; break;
         case "defense_health_pct": m.defenseHealthPct += perRank; break;
         case "march_speed_pct": m.marchSpeedPct += perRank; break;
+        case "scout_yield_pct": m.scoutYieldPct += perRank; break;
         case "troop_stat_pct": {
           const s = (m.troopStatPct[e.target] ??= emptyTroopStat());
           if (e.stat === "attack") s.attack += perRank;

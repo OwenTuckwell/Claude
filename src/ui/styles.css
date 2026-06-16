@@ -24,9 +24,9 @@ body {
 
 /* HUD */
 .hud { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 10px; }
-.hud-res { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
-.res { text-align: center; font-size: 12px; line-height: 1.2; }
-.res .ic { font-size: 15px; }
+.hud-res { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.res { text-align: center; font-size: 11px; line-height: 1.2; }
+.res .ic { font-size: 14px; }
 .res .val { font-weight: 700; }
 .res .rate { font-size: 10px; }
 .rate.pos { color: var(--good); } .rate.neg { color: var(--bad); }
@@ -39,8 +39,22 @@ body {
 
 /* tabs */
 .tabs { display: flex; border-bottom: 1px solid var(--line); background: var(--panel); }
-.tabs button { flex: 1; background: none; border: none; color: var(--muted); padding: 10px 4px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button { flex: 1; background: none; border: none; color: var(--muted); padding: 9px 2px; font-size: 10.5px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; overflow: hidden; }
 .tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* village view */
+.village-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.vtile { aspect-ratio: 1; background: linear-gradient(#3a4a26, #2c3a1d); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+.vtile.sel { outline: 2px solid var(--gold); }
+.vtile .vic { font-size: 26px; line-height: 1; }
+.vtile .vlv { position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: var(--gold); font-weight: 700; }
+.vtile .vnm { font-size: 8.5px; color: var(--ink); margin-top: 2px; text-align: center; }
+.vtile.empty { background: #2a2317; border-style: dashed; color: var(--muted); font-size: 22px; }
+.vtile.busy::after { content: "⏳"; position: absolute; top: 2px; left: 4px; font-size: 10px; }
+
+.tap-stall { width: 100%; padding: 22px 10px; font-size: 16px; font-weight: 800; border-radius: 12px; border: none; background: radial-gradient(circle at 50% 30%, #e7c061, #c79a3a); color: #2a1f10; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+.tap-stall:active { transform: scale(0.98); filter: brightness(1.08); }
+.tradeline { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
 
 .content { flex: 1; padding: 10px; overflow-y: auto; }
 

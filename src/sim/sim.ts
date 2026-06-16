@@ -4,13 +4,14 @@
 import { balance, buildingById, troopById, aiById, world, researchById } from "./content";
 import { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
+import { nextRandom } from "./rng";
 import type {
   BuildingDef, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 const MAX_BUILD_SLOTS = 2;
 const BASE_MARCH_TILES_PER_TICK = 0.5;
 
@@ -76,12 +77,12 @@ export function happiness(s: GameState, mods: Modifiers): number {
 
 /** Net resource change per tick at current settings (for the HUD). */
 export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId, number> {
-  const net: Record<ResourceId, number> = { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0 };
+  const net: Record<ResourceId, number> = { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0 };
   const st = staffing(s);
   for (const b of s.buildings) {
     const def = buildingById[b.id];
     if (def.produces) for (const r of RESOURCE_IDS) if (def.produces[r]) {
-      net[r] += def.produces[r]! * b.level * st * (1 + (mods.productionPct[def.id] ?? 0));
+      net[r] += def.produces[r]! * b.level * st * (1 + (mods.productionPct[def.id] ?? 0)) * balance.productionScale;
     }
     if (def.consumes) for (const r of RESOURCE_IDS) if (def.consumes[r]) net[r] -= def.consumes[r]! * b.level;
   }
@@ -132,6 +133,28 @@ function clampResources(s: GameState, caps: Record<ResourceId, number>) {
 function log(s: GameState, text: string, kind: GameState["log"][number]["kind"]) {
   s.log.unshift({ tick: s.tick, text, kind });
   if (s.log.length > 60) s.log.length = 60;
+}
+
+/** Deterministic randomised loot from a scouting expedition, scaled by the Scouting
+ *  Parties research rank (via mods.scoutYieldPct). Advances the RNG stream. */
+function rollScoutLoot(s: GameState, mods: Modifiers): ResourceMap {
+  const out: ResourceMap = {};
+  const mult = 1 + mods.scoutYieldPct;
+  for (const r of RESOURCE_IDS) {
+    const base = balance.scouting.baseLoot[r];
+    if (!base) continue;
+    const rnd = nextRandom(s.rngState); s.rngState = rnd.state;
+    const amt = Math.round(base * mult * (0.5 + rnd.value)); // 0.5x–1.5x of scaled base
+    if (amt > 0) out[r] = amt;
+  }
+  return out;
+}
+
+export function scoutTravelTicks(state: GameState, mods: Modifiers): number {
+  const rank = state.research["scouting"] ?? 0;
+  const speed = 1 + mods.marchSpeedPct;
+  const base = balance.scouting.baseTravelTicks - rank * balance.scouting.travelTicksPerRankReduction;
+  return Math.max(30, Math.round(base / speed));
 }
 
 function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number>): void {
@@ -185,9 +208,25 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     }
   }
 
-  // Marches.
+  // Marches (assaults and scouting expeditions).
   s.marches = s.marches.filter((mch) => {
     if (s.tick < mch.arriveTick) return true;
+
+    if (mch.phase === "outbound" && mch.kind === "scout") {
+      const loot = rollScoutLoot(s, mods);
+      const report: SiegeReport = {
+        id: `r${s.nextId++}`, kind: "scout", tick: s.tick, targetName: "The Wilds",
+        victory: true, breached: false, attackerLosses: {}, defenderLosses: {},
+        loot, lines: ["Your scouts comb the wilds beyond the borders.",
+          Object.keys(loot).length ? "They return with a cache of supplies." : "They find little of value this time."],
+      };
+      s.reports.unshift(report);
+      if (s.reports.length > 30) s.reports.length = 30;
+      mch.phase = "returning"; mch.loot = loot; mch.reportId = report.id;
+      mch.arriveTick = s.tick + mch.travelTicks;
+      return true;
+    }
+
     if (mch.phase === "outbound") {
       const ai = aiById[mch.targetId];
       const defender: SiegeDefender = {
@@ -200,7 +239,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       const loot: ResourceMap = canLoot ? { ...ai.loot } : {};
       if (canLoot) s.aiState[ai.id].lootedUntilTick = s.tick + ai.regrowTicks;
       const report: SiegeReport = {
-        id: `r${s.nextId++}`, tick: s.tick, targetName: ai.name,
+        id: `r${s.nextId++}`, kind: "assault", tick: s.tick, targetName: ai.name,
         victory: outcome.victory, breached: outcome.breached,
         attackerLosses: outcome.attackerLosses, defenderLosses: outcome.defenderLosses,
         loot, lines: outcome.lines,
@@ -216,14 +255,15 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       mch.reportId = report.id; mch.arriveTick = s.tick + mch.travelTicks;
       return true;
     }
+
     // returning
     for (const [id, c] of Object.entries(mch.army)) s.troops[id] = (s.troops[id] ?? 0) + c;
-    if (mch.loot) {
+    if (mch.loot && Object.keys(mch.loot).length > 0) {
       for (const r of RESOURCE_IDS) if (mch.loot[r]) s.resources[r] += mch.loot[r]!;
       clampResources(s, caps);
-      log(s, `Army returns home with the spoils.`, "good");
+      log(s, mch.kind === "scout" ? `Scouts return with supplies.` : `Army returns home with the spoils.`, "good");
     } else {
-      log(s, `Survivors return home.`, "info");
+      log(s, mch.kind === "scout" ? `Scouts return empty-handed.` : `Survivors return home.`, "info");
     }
     return false;
   });
@@ -356,11 +396,57 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       const speed = BASE_MARCH_TILES_PER_TICK * (1 + mods.marchSpeedPct);
       const travelTicks = Math.max(1, Math.ceil(dist / speed));
       s.marches.push({
-        id: `m${s.nextId++}`, targetId: ai.id,
+        id: `m${s.nextId++}`, kind: "assault", targetId: ai.id, targetName: ai.name,
         army: Object.fromEntries(Object.entries(cmd.army).filter(([, c]) => c > 0)),
         phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks,
       });
       log(s, `Army marches on ${ai.name}.`, "war");
+      return ok();
+    }
+
+    case "tap": {
+      s.resources.token += balance.market.tokensPerTap;
+      return ok();
+    }
+
+    case "buy": {
+      const price = balance.market.buyPriceTokens[cmd.resource];
+      if (!price) return fail("Not for sale.");
+      const amount = Math.max(0, Math.floor(cmd.amount));
+      if (amount <= 0) return fail("Choose an amount.");
+      const cost = Math.ceil(price * amount);
+      if (s.resources.token < cost) return fail(`Need ${cost} tokens.`);
+      const cap = storageCaps(s, mods)[cmd.resource];
+      if (s.resources[cmd.resource] + amount > cap) return fail("Not enough storage.");
+      s.resources.token -= cost;
+      s.resources[cmd.resource] += amount;
+      return ok();
+    }
+
+    case "sell": {
+      const rate = balance.market.sellPriceTokens[cmd.resource];
+      if (!rate) return fail("The market won't buy that.");
+      const amount = Math.max(0, Math.floor(cmd.amount));
+      if (amount <= 0) return fail("Choose an amount.");
+      if (s.resources[cmd.resource] < amount) return fail("Not enough to sell.");
+      const gain = Math.floor(rate * amount);
+      if (gain <= 0) return fail("Too little to be worth selling.");
+      s.resources[cmd.resource] -= amount;
+      s.resources.token += gain;
+      return ok();
+    }
+
+    case "scout": {
+      if ((s.research["scouting"] ?? 0) <= 0) return fail("Research Scouting Parties first.");
+      const cost = balance.scouting.sendCost;
+      if (!canAfford(s.resources, cost)) return fail("Not enough supplies to send scouts.");
+      spend(s.resources, cost);
+      const travelTicks = scoutTravelTicks(s, mods);
+      s.marches.push({
+        id: `m${s.nextId++}`, kind: "scout", targetId: "wilds", targetName: "The Wilds",
+        army: {}, phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks,
+      });
+      log(s, `Scouting party sets out into the wilds.`, "info");
       return ok();
     }
   }

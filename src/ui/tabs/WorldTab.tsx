@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { world, aiById, troopById } from "../../sim/content";
+import { world, aiById, troopById, balance } from "../../sim/content";
+import { scoutTravelTicks } from "../../sim/sim";
+import { computeModifiers } from "../../sim/effects";
 import { RESOURCE_IDS, type Command, type GameState } from "../../sim/types";
-import { RESOURCE_META, armyLabel } from "../format";
+import { RESOURCE_META, armyLabel, fmtDuration } from "../format";
+import { costString } from "../helpers";
 
 export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: Command) => void }) {
+  const mods = computeModifiers(state);
+  const scoutRank = state.research["scouting"] ?? 0;
   const [sel, setSel] = useState<string | null>(null);
   const [army, setArmy] = useState<Record<string, number>>({});
   const { w, h } = world.gridSize;
@@ -58,10 +63,25 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
       )}
 
       <div className="card">
-        <h3>Armies in the field</h3>
-        {state.marches.length === 0 ? <div className="muted">No armies marching.</div> : state.marches.map((m) => (
+        <div className="row"><h3 style={{ margin: 0 }}>🧭 Scouting</h3><span className="tag">rank {scoutRank}</span></div>
+        {scoutRank <= 0 ? (
+          <div className="muted">Research <strong>Scouting Parties</strong> (Logistics) to send scouts into the wilds for loot.</div>
+        ) : (
+          <>
+            <div className="muted">Send a scouting party to comb the wilds for supplies. Higher ranks find more, faster.</div>
+            <div className="row" style={{ marginTop: 8 }}>
+              <div className="cost">Cost {costString(balance.scouting.sendCost)} · ~{fmtDuration(scoutTravelTicks(state, mods), balance.tickLengthSec)} round trip</div>
+              <button className="act" onClick={() => dispatch({ type: "scout" })}>Send scouts</button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="card">
+        <h3>In the field</h3>
+        {state.marches.length === 0 ? <div className="muted">Nothing afoot.</div> : state.marches.map((m) => (
           <div className="queue-item" key={m.id}>
-            <span>{m.phase === "outbound" ? "→ " : "← "}{aiById[m.targetId].name}: {armyLabel(m.army)}</span>
+            <span>{m.kind === "scout" ? "🧭 " : "⚔️ "}{m.phase === "outbound" ? "→ " : "← "}{m.targetName}{m.kind === "assault" ? `: ${armyLabel(m.army)}` : ""}</span>
             <span>{Math.max(0, m.arriveTick - state.tick)}t</span>
           </div>
         ))}

@@ -7,6 +7,13 @@ export const RESOURCE_META: Record<ResourceId, { label: string; icon: string }> 
   iron: { label: "Iron", icon: "⛏️" },
   gold: { label: "Gold", icon: "🪙" },
   rp: { label: "Research", icon: "📜" },
+  token: { label: "Tokens", icon: "🎟️" },
+};
+
+export const BUILDING_ICONS: Record<string, string> = {
+  farm: "🌾", woodcutters_lodge: "🌲", quarry: "🪨", iron_mine: "⛏️",
+  hovel: "🛖", granary: "🏚️", stockpile: "📦", chapel: "⛪", scholars_hall: "📚",
+  barracks: "🏯", archery_range: "🎯", siege_workshop: "🪚", wall: "🧱", tower: "🗼",
 };
 
 export function fmt(n: number): string {

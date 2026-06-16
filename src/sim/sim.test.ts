@@ -74,7 +74,7 @@ describe("commands", () => {
   });
 
   it("rejects unaffordable actions", () => {
-    const s = { ...fresh(), resources: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0 } };
+    const s: GameState = { ...fresh(), resources: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0 } };
     expect(applyCommand(s, { type: "build", building: "barracks", instanceIndex: null }).result.ok).toBe(false);
   });
 
@@ -85,6 +85,36 @@ describe("commands", () => {
     expect(r.result.ok).toBe(true);
     expect(s.troops.spearman ?? 0).toBe(0);
     expect(s.marches.length).toBe(1);
+  });
+});
+
+describe("market & scouting", () => {
+  it("tapping generates market tokens", () => {
+    const r = applyCommand(fresh(), { type: "tap" });
+    expect(r.result.ok).toBe(true);
+    expect(r.state.resources.token).toBe(1);
+  });
+
+  it("buys resources with tokens and rejects when short", () => {
+    let s: GameState = { ...fresh(), resources: { ...createInitialState(777).resources, token: 50 } };
+    const r = applyCommand(s, { type: "buy", resource: "wood", amount: 10 });
+    expect(r.result.ok).toBe(true);
+    expect(r.state.resources.token).toBe(40);
+    expect(r.state.resources.wood).toBe(s.resources.wood + 10);
+    s = r.state;
+    expect(applyCommand(s, { type: "buy", resource: "iron", amount: 1000 }).result.ok).toBe(false);
+  });
+
+  it("scouting requires research, then sends an expedition that returns loot", () => {
+    let s = fresh();
+    expect(applyCommand(s, { type: "scout" }).result.ok).toBe(false); // not researched
+    s = { ...s, research: { scouting: 2 }, resources: { ...s.resources, food: 100 } };
+    const sent = applyCommand(s, { type: "scout" });
+    expect(sent.result.ok).toBe(true);
+    expect(sent.state.marches.length).toBe(1);
+    const after = advance(sent.state, 600); // long enough to go and return
+    expect(after.marches.length).toBe(0);
+    expect(after.reports.some((r) => r.kind === "scout")).toBe(true);
   });
 });
 

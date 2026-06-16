@@ -2,8 +2,8 @@
 // NOTE: this folder must never import React or any presentation code — it is the
 // portable, deterministic game core (see docs/03-technical-architecture.md).
 
-export type ResourceId = "food" | "wood" | "stone" | "iron" | "gold" | "rp";
-export const RESOURCE_IDS: ResourceId[] = ["food", "wood", "stone", "iron", "gold", "rp"];
+export type ResourceId = "food" | "wood" | "stone" | "iron" | "gold" | "rp" | "token";
+export const RESOURCE_IDS: ResourceId[] = ["food", "wood", "stone", "iron", "gold", "rp", "token"];
 
 export type RationLevel = "half" | "normal" | "generous" | "double";
 export type BuildingCategory =
@@ -36,7 +36,7 @@ export interface ResearchEffect {
   type:
     | "production_pct" | "storage_cap_pct" | "tax_yield_pct" | "build_time_pct"
     | "happiness_flat" | "troop_stat_pct" | "defense_health_pct" | "march_speed_pct"
-    | "scout_vision_flat" | "unlock_building" | "unlock_troop";
+    | "scout_vision_flat" | "scout_yield_pct" | "unlock_building" | "unlock_troop";
   target: string;       // resource id, building id, troop id, "global", or category
   stat?: string;        // for troop_stat_pct: "attack" | "defense" | "health"
   valuePerRank?: number;
@@ -85,6 +85,19 @@ export interface Balance {
   startingResources: Record<ResourceId, number>;
   startingPopulation: number;
   buildTimeReductionCap: number;
+  productionScale: number;        // global multiplier on all building output (slow-game knob)
+  market: {
+    tokensPerTap: number;
+    buyPriceTokens: Partial<Record<ResourceId, number>>;   // tokens to buy 1 unit
+    sellPriceTokens: Partial<Record<ResourceId, number>>;  // tokens gained per 1 unit sold
+  };
+  scouting: {
+    baseTravelTicks: number;      // expedition round-trip-ish duration
+    travelTicksPerRankReduction: number;
+    sendCost: ResourceMap;        // cost to send a scouting party
+    baseLoot: ResourceMap;        // expected loot at rank 1 (randomised ±)
+    lootPctPerRank: number;       // extra loot fraction per scouting rank
+  };
 }
 
 export interface AiVillageDef {
@@ -122,7 +135,9 @@ export interface TrainOrder {
 
 export interface March {
   id: string;
-  targetId: string;
+  kind: "assault" | "scout";
+  targetId: string;          // ai village id, or "wilds" for a scouting expedition
+  targetName: string;
   army: Record<string, number>;
   phase: "outbound" | "returning";
   arriveTick: number;
@@ -133,6 +148,7 @@ export interface March {
 
 export interface SiegeReport {
   id: string;
+  kind: "assault" | "scout";
   tick: number;
   targetName: string;
   victory: boolean;
@@ -174,6 +190,10 @@ export type Command =
   | { type: "cancelBuild"; queueIndex: number }
   | { type: "research"; research: string }
   | { type: "train"; troop: string; count: number }
-  | { type: "attack"; targetId: string; army: Record<string, number> };
+  | { type: "attack"; targetId: string; army: Record<string, number> }
+  | { type: "tap" }
+  | { type: "buy"; resource: ResourceId; amount: number }
+  | { type: "sell"; resource: ResourceId; amount: number }
+  | { type: "scout" };
 
 export interface CommandResult { ok: boolean; error?: string; }
