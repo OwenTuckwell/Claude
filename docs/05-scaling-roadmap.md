@@ -21,6 +21,9 @@ milestones into a concrete, buildable backlog.
 - **F** — Gateway techs & concrete progression path (real research/troop ids per ring).
 - **G** — Phase 2 fog-of-war detail (visibility levels, scaling recon, fuzzing).
 - **H** — **Phase 1 implementation checklist — START HERE for building.**
+- **I** — Phase 1 starting balance constants (aiScaling block, progression index P).
+- **J** — Tap & market scaling (rank-scaled tap that stays a gentle, non-breaking aid).
+- **K** — Research tree clarity (clean branch-columns, cross-branch prereqs as badges).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1031,3 +1034,104 @@ Build a tiny **headless harness** (run the sim N turns with no UI, log P and eac
 faction's strength over time). Verify: factions track inside `[bandFloor, bandCeil] * P`;
 no runaway; a passive player is overtaken within a believable window; an active player
 stays ahead. Adjust the I.1 constants from those curves.
+
+---
+
+# Appendix J — Tap & market scaling (a gentle aid that never dies)
+
+**Problem:** `tap` gives a flat `+1 token` (`sim.ts:448`); tokens buy resources at fixed
+prices (`balance.market`, e.g. food = 2.5 tokens). Early game a tap is a meaningful
+top-up; late game (thousands of resources) it's negligible — the mechanic withers.
+
+**Design goal (player's words):** tapping should stay relevant *throughout*, scale with
+progression, and remain a **gentle, boring aid — never game-breaking** or a primary
+income. It's a satisfying fidget that tops you up, not an economy.
+
+## J.1 Approach — scale the tap with realm rank
+Tie tap value to **rank tier** (Peasant=0 … Prince=9, King=10; from `RANKS` in
+`territory.ts`). As you rank up, each tap is worth proportionally more, so it keeps pace
+with your growing economy instead of falling behind.
+
+```
+tokensPerTap(rankTier) = baseTokensPerTap * (1 + rankTier * tapRankBonus)
+```
+Starting constants (tune later):
+- `baseTokensPerTap: 1`
+- `tapRankBonus: 0.6`  → Peasant ≈ 1, Knight(5) ≈ 4, King(10) ≈ 7 tokens/tap.
+
+Because token *prices* stay fixed, a King's ~7-token tap still buys only ~3 food — a small
+nudge relative to a King-sized economy. **That's the point:** it scales enough to stay
+worth doing, never enough to matter strategically.
+
+## J.2 Keep it gentle — anti-spam soft cap
+So it can't be auto-clicked into an exploit, add a **diminishing soft cap** over a rolling
+window: full value for the first `tapSoftCapPerMin` taps per real minute, then sharply
+reduced yield. Boring by design — there's no reward for frantic tapping.
+```
+"tap": { "baseTokensPerTap": 1, "tapRankBonus": 0.6,
+         "tapSoftCapPerMin": 30, "overCapYieldPct": 0.15 }
+```
+(Track `tapWindowStartTick` + `tapsThisWindow` on `GameState`; deterministic.)
+
+## J.3 Optional research hook (ties tap into the tree)
+Let a market/trade research node gently improve trade: e.g. `commerce` (exists) adds a
+small `tap_yield_pct` or reduces `buyPriceTokens`. Keeps the market connected to the
+progression tree without making tapping powerful. Low ranks, small values.
+
+## J.4 Implementation notes
+- `sim.ts` `case "tap"`: compute `tokensPerTap` from current rank tier + soft-cap state.
+- Needs the player's rank tier in the sim (already derivable via `realmInfo`/`RANKS`).
+- Small UI touch: show the current per-tap value ("+7 🪙/tap at your rank") so the scaling
+  is visible and the player understands it grows.
+- Tests: per-tap value rises with rank deterministically; soft cap reduces yield past the
+  threshold; never exceeds a sane ceiling.
+
+---
+
+# Appendix K — Research tree clarity (clean branches, no spaghetti)
+
+**Problem:** `ResearchTab.tsx` draws a straight SVG line from every node to each
+prerequisite (`ResearchTab.tsx:70`). Two things make it messy:
+1. **Cross-branch prereqs** become long diagonal lines slashing across the whole tree.
+2. Nodes are sorted **by name** within a depth tier (`:53`), so even same-branch links
+   cross each other.
+
+Goal: **five clean vertical branch-columns**, short mostly-vertical links, and no lines
+flying across the board.
+
+## K.1 Layout fix — order siblings by their parent (subtree layout)
+Within each branch, instead of name-sorting a tier, position each node **under its
+prerequisite**: do a depth-first walk from the branch's root nodes and assign rows so
+children sit directly below/near their parent. Result: intra-branch links become short and
+near-vertical, and siblings stop crossing. (Classic tidy-tree ordering, per branch.)
+
+## K.2 The big win — render cross-branch prereqs as badges, not lines
+Most spaghetti comes from a node in one branch requiring a node in another (e.g. a
+military tech needing a construction tech). **Don't draw those as lines.** Instead show a
+small **badge/chip on the node**: "needs 🧱 Masonry 2". The dependency is still clear, but
+the long diagonal disappears. Only **intra-branch** prereqs get drawn lines.
+
+## K.3 Visual separation of branches
+- Put each branch in its own **bordered column/card** tinted with the branch color
+  (economy green, military red, etc.) so the five branches read as distinct lanes.
+- Keep the branch header sticky at the top of each column while scrolling.
+- Use **orthogonal (elbow) connectors** for intra-branch links instead of diagonals — they
+  read as a clean tree, not a web.
+
+## K.4 Tier bands (optional, ties to the gateway model)
+Add horizontal **tier bands** (Tier 1 / 2 / 3 …) by prereq depth, labeled down the side.
+This makes the "build order" ladder legible and lets us visually mark **gateway techs**
+(Appendix F) — e.g. highlight `siegecraft` as the Tier-? unlock that opens the first ring.
+
+## K.5 Small content audit (supports the layout)
+- Review `content/research.json` prereqs: keep dependencies **mostly intra-branch**; only
+  cross branches when it's genuinely meaningful (and then it's a badge, K.2).
+- Ensure each branch has a clear **root** (a no-prereq starter) so the subtree layout has a
+  clean top. (`militia`, `better_ploughs`, `masonry`, `cartography`, `statecraft` look like
+  the natural roots today.)
+- This pairs with the Phase 4 content expansion (slot new nodes into a branch + tier).
+
+## K.6 Where this lands
+- Layout/render changes = **Phase 5 (design & feel)**; the content/prereq audit = **Phase
+  4**. Small and high-impact for readability — worth doing early in the feel pass.
+- Pure UI + data; no sim logic changes, so it's low-risk.
