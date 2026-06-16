@@ -23,8 +23,9 @@ yet; this is what the prototype gets built against.
    **MMO** with no rewrite. Includes the content data schemas.
 5. **[04-mvp-roadmap.md](04-mvp-roadmap.md)** — milestones M0→M4 with "done" definitions.
 6. **[05-scaling-roadmap.md](05-scaling-roadmap.md)** — the "make it BIG" plan: scaling
-   AI, fog-of-war scouting, deep progression, art/feel, MMO, and the (optional) Unity
-   packaging step. Picks up where `04` leaves off.
+   AI, fog-of-war scouting, castle development + the Castellany research branch, deep
+   progression, 2.5D art/feel, MMO, and the (optional) Unity packaging step. Picks up
+   where `04` leaves off.
 
 ## Sample content data
 

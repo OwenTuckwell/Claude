@@ -117,7 +117,55 @@ attacks, and intel quality visibly improves with progression.
 
 ---
 
-## Phase 3 — Loads more progression
+## Phase 3 — Castle Development & the Castellany
+
+**Goal:** A dedicated **castle screen** — a second build/management space alongside the
+home village — where the player designs and upgrades their fortress. This is both a major
+gameplay pillar (it *is* your siege defense) and a huge **new research surface**.
+
+Today fortifications exist only as data attached to the village/siege resolver; there is
+no place to actually *develop* a castle. We make the castle a first-class location.
+
+### 3A. The castle as a second location
+- A new top-level screen (peer to the Village tab): the **castle bailey/grounds** with
+  its own build grid/layout, separate from village production buildings.
+- The castle holds **defensive + military-support structures**: keep, curtain walls,
+  gatehouses, towers (garrisonable with ranged troops), barbican, moat, drawbridge,
+  traps, and inner buildings (armoury, garrison hall, smithy, dungeon, great hall).
+- **Layout matters:** placement on the grid feeds directly into the deterministic siege
+  resolver (this is the "design-a-castle, breach-a-castle" identity from `01 §7`).
+  Upgrading the village no longer silently sets defense — you *build the castle*.
+
+### 3B. The Castellany research branch (lots of new research)
+- A whole new research branch (or two) unlocked by castle development:
+  - **Fortification tiers** — wooden palisade → stone curtain → concentric walls; tower
+    types (watch/arrow/cannon); gatehouse upgrades; moat & water defenses.
+  - **Castellany / garrison** — garrison capacity, tower archer bonuses, sortie ability,
+    repair speed, supply/siege-resistance (hold out longer under siege).
+  - **Siege engineering (offense side)** — better rams/catapults/trebuchets/towers for
+    attacking *enemy* castles, tying back to Phase 1's AI sieges.
+- This alone meaningfully grows the research tree toward the 100+ target in Phase 4 and
+  gives the castle a long upgrade arc.
+
+### 3C. Economy & integration hooks
+- Castle buildings cost stone/iron/wood + build-time (reuse the build-queue system);
+  some require village prerequisites (a quarry before stone walls, etc.) so the two
+  locations interlock.
+- Garrisoning towers pulls from your standing army → a real allocation decision
+  (defend the castle vs. field an attacking force).
+- **Fog of war (Phase 2) pairs here:** scouting an enemy reveals *their* castle layout,
+  which you study before committing to a siege.
+
+### 3D. Tests
+- Castle layout → siege-resolver outcomes stay deterministic; new fortification tiers
+  resolve correctly; garrison allocation is consistent.
+
+**Done when:** the player has a distinct, satisfying castle to grow over time, its layout
+visibly changes siege outcomes, and a deep Castellany research branch is live.
+
+---
+
+## Phase 4 — Loads more progression
 
 **Goal:** Much more to chase, long-arc depth. Most of this is **data entry** against the
 existing schemas, validated by the sim tests.
@@ -131,14 +179,15 @@ existing schemas, validated by the sim tests.
     influence resource.
   - **Steward card/boost economy** (`01 §9`) — collectible timed modifiers; slots into
     the existing typed-effect system cleanly.
-- **Deeper siege:** more fortification types, watchable replay of the auto-resolve.
+- **Deeper siege:** watchable replay of the auto-resolve (fortification breadth now
+  comes largely from the castle/Castellany work in Phase 3).
 
 **Done when:** there's a satisfying multi-week progression arc with prestige beyond it,
 and the political/boost systems are live in single-player.
 
 ---
 
-## Phase 4 — Better design & feel (still web)
+## Phase 5 — Better design & feel (still web)
 
 **Goal:** Make it *look and feel* like a real game on the current stack — the cheapest
 place to nail art direction before any port.
@@ -157,13 +206,13 @@ phone screen, and the art style is locked.
 
 ---
 
-## Phase 5 — Bigger world → Multiplayer (MMO)
+## Phase 6 — Bigger world → Multiplayer (MMO)
 
 **Goal:** Your roadmap's M4 — turn the single-player world persistent and shared.
 
 - **Cheap first:** bigger map, more factions, richer neutral world — all in-sim.
 - **Then the real lift:** authoritative **server running the same sim core** (the
-  determinism we protected in Phases 1–2 is what makes this possible); command
+  determinism we protected throughout Phases 1–4 is what makes this possible); command
   validation/anti-cheat; persistence DB; region/world matchmaking; real players replace
   local AI (AI fills empty space). Layer the political/boost systems server-side.
 
@@ -172,7 +221,7 @@ live economy, sieges, and recon.
 
 ---
 
-## Phase 6 — Unity packaging (optional, later)
+## Phase 7 — Unity packaging (optional, later)
 
 **Goal:** Native mobile apps — **not a 3D rewrite.**
 
@@ -189,14 +238,15 @@ live economy, sieges, and recon.
 
 ```
 Phase 1 (scaling AI) ─┐
-Phase 2 (fog/recon)  ─┼─ web, parallelizable, all reversible
-Phase 3 (progression)┘
+Phase 2 (fog/recon)  ─┤
+Phase 3 (castle dev) ─┼─ web, parallelizable, all reversible
+Phase 4 (progression)┘
         │
-Phase 4 (design/feel) ── art lock on web
+Phase 5 (design/feel) ── art lock on web
         │
-Phase 5 (bigger world → MMO)
+Phase 6 (bigger world → MMO)
         │
-Phase 6 (Unity packaging, optional)
+Phase 7 (Unity packaging, optional)
 ```
 
 - **Cheap validation before expensive commitment** — exhaust the web stack before any
