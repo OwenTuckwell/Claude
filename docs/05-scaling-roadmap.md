@@ -356,9 +356,28 @@ typed-effect system; add new effect `type`s where noted.
 `tower_ranged_dmg_pct`. Add to the `Modifiers` shape in `src/sim/effects.ts` + the effect
 `type` union in `src/sim/types.ts` when Phase 3 is built.
 
-## A.4 Open balance questions (decide before building)
-- Does the castle share the village build queue or get its own?
-- Is garrison drawn from the same troop pool as your field army (forces allocation) — or
-  a separate "garrison" pool?
-- Grid size: fixed, or does `keep` level expand the buildable castle area?
-- Repair: automatic over time, or a player action costing resources?
+## A.4 Decided design rules (locked)
+These were open questions; now decided. They drive the implementation.
+
+1. **Garrison = the field-army pool.** Troops you assign to garrison towers/walls are the
+   *same* troops you'd send to attack — so manning the castle removes them from any
+   attacking force. This is the core **defend-vs-attack allocation tension**. Implication:
+   the garrison is an *assignment* of existing `state.troops`, not a separate roster;
+   garrisoned troops are unavailable for marches until un-assigned.
+2. **Castle has its OWN build queue,** separate from the village queue. Fortifying and
+   economy progress run in parallel — building walls doesn't stall a farm upgrade.
+   Implication: `GameState` needs a second queue (e.g. `castleQueue`) alongside the
+   village build queue; UI shows two queues.
+3. **Keep level expands the buildable castle grid.** A higher `keep` unlocks more castle
+   tiles/slots — a long-arc progression hook centered on one prestige building. Implication:
+   castle grid capacity is a function of `keep` level; the keep is the first thing you
+   invest in and gates how elaborate a fortress you can design.
+4. **Repair is a player action costing resources** (stone/iron), sped up by
+   `rapid_repair` research + `castle_smithy`. Sieges have a real economic aftermath — a
+   lost defense isn't free to rebuild. Implication: add a `repair` command; damaged
+   fortifications persist in state at reduced health until repaired.
+
+## A.5 Still-open balance knobs (tune later, don't block build)
+- Exact keep-level → grid-size curve.
+- Whether garrison assignment is per-tower (micro) or one castle-wide garrison number.
+- Repair cost as a % of original build cost vs a flat per-damage formula.
