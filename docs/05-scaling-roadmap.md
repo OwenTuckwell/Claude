@@ -876,3 +876,74 @@ Phase 2 pairs naturally **right after Phase 1** (smarter rivals are more interes
 you must scout to learn about them) and **before the big-map work pays off** — but it
 depends only on the march system that already exists, so it can also be built
 independently if desired.
+
+---
+
+# Appendix H — Phase 1 implementation checklist (start here at home)
+
+Concrete, ordered, each step independently testable + committable. File targets are real.
+Keep all logic in `src/sim`; run `npm test` after each step. Bump `schemaVersion`
+(currently a field on `GameState`, `types.ts:185`) the first time state shape changes, and
+handle old-save migration in `src/host/persistence.ts`.
+
+### Step 1 — Codify the rules (no behavior change yet)
+- New `src/sim/rivals.ts`: pure functions
+  `difficultyFor(distance)`, `garrisonFor(difficulty)`, `fortsFor(difficulty)`,
+  `archetypeFor(index)` — using the **E.4/E.5 formulas**.
+- Test: for each of the 9 current rivals, `garrisonFor`/`fortsFor` equal the values in
+  `content/world.json` (locks parity).
+- Commit: "Add rivals.ts: geography-derived difficulty/garrison/archetype rules".
+
+### Step 2 — Make rival data optional + archetype-aware
+- `types.ts AiVillageDef`: make `difficulty?`, `garrison?`, `fortifications?` optional; add
+  `archetype?: "turtle" | "aggressor" | "economic"`.
+- `content.ts`: when building `factions`, fill missing fields via `rivals.ts`; apply the
+  C.2 archetype assignments (or compute via `archetypeFor`).
+- Test: derived factions still match today's 9. Commit.
+
+### Step 3 — Extend AI state (save bump)
+- `types.ts AiVillageState`: add `economy: number; army: number; fortLevel: number;`
+  (keep `lootedUntilTick`). Initialize per faction from its difficulty.
+- Bump `schemaVersion`; migrate old saves in `persistence.ts` (default the new fields).
+- Test: load an old-shape save → fields defaulted, no crash. Commit.
+
+### Step 4 — AI economic growth
+- `territory.ts aiTurn`: each living faction grows `economy` per archetype (B.3) and
+  reinvests into `army`/`fortLevel`, **clamped toward the player-scaled band** (B.2).
+- New `src/sim/aiScaling.ts`: `playerProgressionIndex(state)` + `targetBand(archetype,
+  difficulty, P)` + rubber-band caps/floor. Constants in `config/balance.json`.
+- Test: deterministic growth; over a long simulated game strength stays in band; no
+  runaway. Commit.
+
+### Step 5 — Convert abstract strength → real defender
+- `rivals.ts` (or `aiScaling.ts`): `defenderFor(faction, state)` → `{garrison, forts}`
+  scaled by current `army`/`fortLevel` (not just static difficulty). Use it in
+  `defenderForTile` (`territory.ts:83`) so attacking a grown rival is genuinely harder.
+- Test: a rival that has grown yields a tougher `SiegeDefender`. Commit.
+
+### Step 6 — AI sieges back at the player
+- `territory.ts aiTurn`: aggressors (and pressured factions) launch a **real** assault on
+  a player border tile via `resolveSiege` (build the attacker army from `army`), produce a
+  `SiegeReport` + Chronicle log, apply outcome (seize tile only on a real win, with
+  losses). Respect a **cooldown** + max simultaneous threats (B.7).
+- Test: an aggressor with enough strength can take a weakly-defended border tile via a
+  resolved siege; capital stays unconquerable; cooldown respected. Commit.
+
+### Step 7 — AI-vs-AI (cheap)
+- `aiTurn`: factions contest neutral border land with each other via an **abstract** clash
+  (compare strengths + seeded roll), not a full siege — so the map evolves without cost.
+- Test: over time, ownership shifts between AIs deterministically. Commit.
+
+### Step 8 — Offline catch-up + polish
+- Verify AI turns advance correctly through offline catch-up (`persistence.ts` time
+  bridge) and remain deterministic across a save/load mid-campaign.
+- Chronicle/log readability pass for all new AI actions. Commit.
+
+### Definition of done (Phase 1)
+A passive player gets visibly pressured by aggressors; ignored economic rivals snowball;
+turtles are tough until you bring siege engines; the map evolves on its own; everything is
+deterministic and covered by golden-state tests. Then move to **Phase 2 (Appendix G)**.
+
+> Note: the world generator (Appendix E) is **not required** for Phase 1 — it works on the
+> current 9-rival map. Build the generator when you actually want the bigger map; Steps 1–2
+> here make that a clean drop-in because rival data is already rule-derived.
