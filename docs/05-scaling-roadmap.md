@@ -24,6 +24,7 @@ milestones into a concrete, buildable backlog.
 - **I** — Phase 1 starting balance constants (aiScaling block, progression index P).
 - **J** — Tap & market scaling (rank-scaled tap that stays a gentle, non-breaking aid).
 - **K** — Research tree clarity (clean branch-columns, cross-branch prereqs as badges).
+- **L** — The spatial siege model (concentric rings + breach lanes; layout becomes strategy).
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1135,3 +1136,95 @@ This makes the "build order" ladder legible and lets us visually mark **gateway 
 - Layout/render changes = **Phase 5 (design & feel)**; the content/prereq audit = **Phase
   4**. Small and high-impact for readability — worth doing early in the feel pass.
 - Pure UI + data; no sim logic changes, so it's low-risk.
+
+---
+
+# Appendix L — The spatial siege model (the signature mechanic, done right)
+
+The siege is the game's identity (`01 §7`), but today it's **aggregate**: all forts sum
+into one `fortHP` + a tower-archer pool (`siege.ts:93`); *where* you place things doesn't
+matter. This is the Phase 3 upgrade that makes castle **layout** strategic — for both the
+player's defense and AI castles you assault. It answers the earlier question "is there
+attack-layout strategy?" with a real **yes**.
+
+> Hard constraint: stay **deterministic & server-authoritative** (seeded RNG, outcome a
+> pure function of layout + armies + seed). No live input required — fits async/slow play.
+
+## L.1 Concept — concentric rings + breach lanes
+A castle is concentric (mirrors the world's ring theme):
+```
+        outer wall ─ gatehouse
+   moat ┃  ┌─tower    tower─┐  ┃
+        ┃  │   inner wall    │  ┃
+        ┃  │     ┌─keep─┐    │  ┃
+   the attacker must cross: moat → outer wall/gate → courtyard (tower fire)
+   → inner wall/gate → keep.
+```
+- The grid is divided into a few **lanes** (approach paths) from the perimeter to the keep
+  — e.g. N/E/S/W, count tied to `keep` level / grid size (A.4 rule 3).
+- Each lane is a **sequence of obstacles**: `moat? → outer wall/gate segment → tower
+  coverage → inner wall/gate segment → keep`.
+- **Placement decides coverage:** a tower defends the lane(s) adjacent to it; a gate is a
+  weaker-but-targetable segment; traps/moat sit in specific lanes. The same buildings, laid
+  out differently, give very different defenses.
+
+## L.2 Defender layout (what the player designs in the castle screen)
+- Place wall segments, gates, towers, moat, traps on the grid (Phase 3 castle build).
+- **Assign garrison to towers** (from the field-army pool, A.4 rule 1) — each tower fires
+  on its covered lane(s) up to its `garrisonSlots`.
+- Trade-offs that now matter: concentrate towers on one strong lane (a kill-zone) vs spread
+  them; layer two thin walls vs one thick; cover the gate (weak point) or sacrifice it.
+
+## L.3 Attacker plan (deterministic, derived — no live input)
+The attacker's army + siege engines resolve against the layout by a fixed policy:
+- **Lane choice:** pick the **weakest lane** (least tower coverage / lowest wall HP),
+  optionally split siege engines across the two weakest. Deterministic from the layout.
+- **Per-lane assault:** siege engines batter that lane's wall/gate segment (gate = less HP);
+  while it stands, that lane's covering towers fire on the stack (the `siege.ts` attrition
+  idea, but **per lane** now). On breach, infantry pours into the courtyard.
+- **Courtyard → inner ring → keep:** repeat for the inner wall; surviving garrison fights
+  the field battle at the keep (reuse the existing field-battle loop, with the +10% home
+  edge, `siege.ts:131`).
+
+## L.4 Resolution algorithm (extends, not replaces, `resolveSiege`)
+1. Build lanes from the layout; compute each lane's wall/gate HP and covering tower fire.
+2. Attacker selects lane(s) per L.3 policy.
+3. For each engaged lane: breach phase (siege vs segment HP, tower attrition per round) →
+   if breached, push troops inward; aggregate surviving forces.
+4. Final field battle at the keep (existing loop).
+5. Emit a richer **blow-by-blow log** ("They mass on the west gate… the south tower
+   rakes them… the gate splinters on round 4…") — great for the watchable replay (Phase 3).
+- Everything seeded ⇒ identical inputs → identical outcome (server-verifiable).
+
+## L.5 Backward compatibility & phasing
+- The current aggregate resolver = the **1-lane, no-coverage special case**. So:
+  - **Now (M2):** keep aggregate `resolveSiege`.
+  - **Phase 3:** introduce lanes behind the castle layout; when a defender has a real
+    layout, use the spatial resolver; legacy/simple defenders fall back to aggregate.
+  - Golden-state tests: a single-lane spatial siege equals the old aggregate result
+    (parity), then add multi-lane cases.
+
+## L.6 Ties to the other systems
+- **AI castles (Phase 1/B.5):** AI capitals get layouts too (generated by difficulty/
+  `fortLevel`, like garrisons in E.4) — so cracking a turtle means *out-engineering its
+  layout*, not just out-massing it.
+- **Fog of war (Phase 2/G):** you only know an enemy's layout once **surveilled**;
+  attacking on stale/`scouted` intel means guessing which lane is weak — recon directly
+  feeds siege planning.
+- **Research (F):** Castellany branch (A.2) buys layout power (concentric design, tower
+  artillery, machicolations); siege-engineering buys breach power — both now have *spatial*
+  expression, not just +% numbers.
+
+## L.7 Keep it mobile-friendly
+- Layout editing = drag onto a small grid; defaults/templates so casual players aren't
+  forced to micro-optimize (a sensible auto-layout per keep level).
+- Depth is **opt-in**: a casual player places a decent default and wins; a strategist
+  designs kill-zones. Both valid — respects the "gentle for casual, deep for optimizers"
+  pillar.
+
+## L.8 Open questions (decide in Phase 3)
+- Lane count curve vs keep level / grid size.
+- Does the attacker ever split across >2 lanes, or always focus?
+- Are traps one-shot-per-siege (consumed) or persistent?
+- How much does layout matter vs raw stats? (tune so layout is a real multiplier, not the
+  whole game — keep army/economy meaningful too).
