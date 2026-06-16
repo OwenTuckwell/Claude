@@ -8,6 +8,23 @@ milestones into a concrete, buildable backlog.
 > 36 research nodes, 10 troops, 9 AI rivals** on a 22×32 GB+Ireland map. Clean
 > `src/sim` (pure/deterministic/tested) ↔ `src/ui` split is intact — protect it.
 
+## Contents
+**Phases:** 1 Scaling AI · 2 Fog of war · 3 Castle development · 4 Progression ·
+5 Design/feel · 6 Bigger world/MMO · 7 Unity packaging.
+
+**Appendices (the detail):**
+- **A** — Castle content draft (buildings, Castellany research, locked decisions, village-vs-castle).
+- **B** — Phase 1 scaling-AI detail (AI state, scaling band, personalities, combat model).
+- **C** — The layered ring model (difficulty rings, rival archetype assignments, layer stack).
+- **D** — Scaling the world (bigger map & more opponents; the missing generator).
+- **E** — World generator spec (seeded TS generator; reverse-engineered rival formulas).
+- **F** — Gateway techs & concrete progression path (real research/troop ids per ring).
+- **G** — Phase 2 fog-of-war detail (visibility levels, scaling recon, fuzzing).
+- **H** — **Phase 1 implementation checklist — START HERE for building.**
+
+> **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
+> build steps. Appendices B/C/F give the "why" behind them.
+
 ---
 
 ## Guiding decisions (the "why" behind the sequencing)
