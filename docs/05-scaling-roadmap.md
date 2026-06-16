@@ -735,3 +735,67 @@ parts) so large maps get plausible names without manual work.
 Generate a `60x90`, 40-rival map with a new seed; confirm rings populate sensibly,
 spacing holds, difficulties spread 1–`maxDiff`, and the sim loads & runs it unchanged
 (the N-proof audit, D.3). That's the green light that the world can grow freely.
+
+---
+
+# Appendix F — Gateway techs & the concrete progression path
+
+Ties Appendix A/C to the **real** research + troop ids in `content/`. The "build order is
+the strategy" claim, made concrete: each ring is gated by specific techs.
+
+## F.1 The critical gateway: siege engines
+The resolver hard-blocks any breach with no siege engines (`siege.ts:111`) — pure
+infantry/cavalry **cannot take a walled keep at any size.** Therefore:
+- **`siegecraft`** (r3, military) → unlocks **`catapult`** (`vsFort 3.0`). This is the
+  game's first hard gate: until you research it you can raid neutral tiles but **cannot
+  conquer any rival keep.** Highfort (turtle, wall L1) is the tutorial target that
+  teaches this lesson.
+- **`trebuchets`** (r3) → unlocks **`trebuchet`** (`vsFort 3.5`) — the heavier breacher
+  you need for outer/far rings (wall L3–L4 + towers).
+
+## F.2 Counter logic (who beats whom)
+From the troop data (`counters`): **ranged beats infantry**, **infantry (spear/pike)
+beats cavalry**, **cavalry beats ranged** (`siege.ts:64` gives +25% vs countered roles).
+Rival garrisons are infantry-heavy + archers, gaining cavalry/knights at high difficulty
+(E.4). So the army you must field shifts by ring:
+
+| To beat their... | Bring... | Gated by |
+|---|---|---|
+| spearmen/swordsmen (infantry) | archers / crossbowmen (ranged) | `archery`, `crossbows` |
+| tower archers (ranged) | horsemen / knights (cavalry) | `knighthood`, `chivalry` |
+| horsemen/knights (cavalry, high diff) | pikemen (infantry) | `pikes` |
+| the walls themselves | catapults → trebuchets (siege) | `siegecraft`, `trebuchets` |
+
+## F.3 The ring-by-ring gateway path
+| Ring | Rivals (archetype) | Threat profile | Gateway research (in order) |
+|---|---|---|---|
+| **Inner (d1)** | Highfort (turtle), Stormhold (aggr), Westvale (econ) | wall L1, no towers | `militia`+`archery` (an army) → **`siegecraft`** (breach at all). For the aggressor: `masonry` (your own walls). |
+| **Mid (d2)** | Eastmarch (aggr), Greyfen (turtle) | wall L2 + tower L1, swordsmen | `crossbows` (better ranged), `blacksmithing`, `fortification` (survive Eastmarch's raids), more catapults |
+| **Outer (d3)** | Ironcliff (turtle), Dunhollow (econ) | wall L3 + tower L2, +horsemen | **`trebuchets`** (crack L3), `pikes` (vs their cavalry), `deep_mining`/`stonecutting` (fund siege trains), economy to out-race Dunhollow |
+| **Far (d4)** | Southport (aggr), Brookmere (econ, Crown) | wall L4 + tower L3, +knights | `knighthood`+`plate_armor`+`chivalry` (elite army), trebuchet trains, `architecture`/`fortification` maxed (survive a diff-4 aggressor), strong statecraft economy |
+
+So the tech tree literally reads as a conquest route: **militia → archery → siegecraft**
+(take the first keep) **→ crossbows/fortification** (survive & push the mid ring) **→
+trebuchets/pikes** (crack the outer ring) **→ knighthood/plate/chivalry** (contest the
+Crown). An under-teched player bounces off the next ring — exactly the intended pressure
+back into the tree (C.5).
+
+## F.4 Logistics becomes a gateway on bigger maps
+March time scales with distance (`balance.conquest.tileTravelPerTile`). On today's small
+map this is minor, but on the **bigger maps (Appendix D/E)** reaching a far ring takes
+real time, so **logistics techs become a genuine gateway**:
+- `cartography`, `supply_lines`, `royal_roads` (march speed) — without them, far-ring
+  campaigns are painfully slow and your armies are exposed in transit.
+- `scouting`/`foraging` (Phase 2 fog of war) — you can't even *see* far rings until you
+  invest in recon; on a big map this is the difference between blind marches and planned
+  strikes.
+This is a nice emergent result: **the bigger the world, the more the logistics branch
+matters** — scaling the map automatically deepens an otherwise-minor branch.
+
+## F.5 Implication for content tuning (Phase 4)
+- Set research **prereqs/costs** so the gateway order above is the natural path (e.g.
+  `trebuchets` should sit deep enough that it reads as an outer-ring unlock).
+- Consider explicit prereq links (`siegecraft` before `trebuchets`) so the tree visibly
+  encodes the ladder.
+- When adding the 100+ nodes (Phase 4), slot each new node into a ring tier so the tree
+  grows *with* the rings rather than as a flat blob.
