@@ -651,3 +651,87 @@ Mostly good today — confirm and protect:
 3. Make `AiVillageDef` fields optional + add `archetype`; regenerate the current map
    through the new pipeline to prove parity with today's hand-authored one.
 4. Add a tiny test: a generated 9-rival map matches the current ring/archetype intent.
+
+---
+
+# Appendix E — World generator spec (D.7 step 1)
+
+A reproducible, seeded generator that emits a schema-valid `content/world.json`. Replaces
+the missing `tools/genworld.py`. **Must reproduce today's 9-rival GB map** (parity gate)
+*and* scale to large maps with many rivals.
+
+## E.1 Language & integration
+- Write it in **TypeScript** under `tools/genworld.ts` (not Python) so it reuses
+  `src/sim/types.ts` (schema), `src/sim/rng.ts` (the existing deterministic PRNG), and
+  the difficulty/garrison rules — one source of truth, no drift.
+- Run via `npm run genworld -- --seed 1 --size 22x32 --rivals 9 --out content/world.json`.
+- Output is validated against `WorldDef` before writing; a test round-trips it.
+
+## E.2 Inputs (CLI / config)
+| Param | Meaning | Default (reproduces today) |
+|---|---|---|
+| `seed` | PRNG seed → fully deterministic map | fixed value chosen to match current map |
+| `size` | grid `w x h` | `22x32` |
+| `mode` | `authored` (rasterize a base shape) or `procedural` (noise) | `authored` (GB+Ireland) |
+| `rivals` | number of AI capitals | `9` |
+| `homeTile` | player start | `15,19` |
+| `ringWidth` | tiles per difficulty ring | tuned so the 9 rivals land on diff 1–4 |
+| `maxDiff` | max difficulty | `4` |
+| `minSpacing` | min tiles between capitals | tuned to current spread |
+| `homeClearR` | radius around home kept rival-free | small (protect the start) |
+
+## E.3 Algorithm
+1. **Land** — `authored`: rasterize the canonical GB+Ireland shape to ASCII `#`/`.` at the
+   requested resolution. `procedural`: seeded value-noise → threshold → keep the largest
+   connected landmass → smooth coastline. Output `land[]` rows + `gridSize`.
+2. **Home** — place `player.tile` (default `15,19`); verify it's land.
+3. **Scatter rivals** — Poisson-disk-style sampling on land tiles: reject points within
+   `minSpacing` of another capital or within `homeClearR` of home, until `rivals` placed.
+   Seeded → deterministic. (For parity, a fixed seed reproduces the current 9 positions;
+   or pin them via an override list — see E.6.)
+4. **Assign per rival from geography** (the D.1 rules, formalized in E.4/E.5).
+5. **Validate & write** `world.json`.
+
+## E.4 Difficulty & garrison formulas (reverse-engineered from the current 9 rivals)
+These exactly reproduce the existing hand-authored data, so they're the canonical rules:
+
+- **Difficulty:** `diff = clamp(ceil(distanceFromHome / ringWidth), 1, maxDiff)`.
+- **Garrison by difficulty `d`:**
+  - spearman = `4 + 5·d`  → d1:9, d2:14, d3:19, d4:24 ✓
+  - archer   = `3 + 4·d`  → d1:7, d2:11, d3:15, d4:19 ✓
+  - swordsman = `3·d` if `d ≥ 2` else 0 → d2:6, d3:9, d4:12 ✓
+  - horseman = `2·d + 2` if `d ≥ 3` else 0 → d3:8, d4:10 ✓
+  - knight   = `4` if `d ≥ 4` else 0 → d4:4 ✓
+- **Fortifications by difficulty `d`:**
+  - wall level = `d` (d1→L1 … d4→L4) ✓
+  - tower level = `d − 1` if `d ≥ 2` else none (d2→L1 … d4→L3) ✓
+
+So higher rings unlock richer troop types *and* taller walls — the ring ladder is baked
+into the numbers, and any new rival at distance X is auto-statted.
+
+## E.5 Archetype rule (reproduces Appendix C.2 intent)
+Deterministic, position-based, with a bias that teaches early and threatens late:
+- Default: cycle `[aggressor, economic, turtle]` by rival index **sorted by distance**, so
+  the inner ring gets one of each (defend / act / siege lessons), matching C.2.
+- Optional ring bias for big maps: weight inner rings toward `aggressor`, outer rings
+  toward `economic` (Crown rivals). A knob in config.
+- Always allow explicit per-rival `archetype` overrides (E.6).
+
+## E.6 Named-rival overrides (keep authored character)
+The generator accepts an optional list of fixed rivals: `{id, name, tile?, difficulty?,
+archetype?, garrison?, fortifications?}`. Provided fields override the computed ones;
+omitted fields are computed. This is how we (a) pin the current 9 named keeps for parity,
+and (b) hand-place special "boss" rivals on big procedural maps while everything else is
+auto-generated. Names for auto-rivals come from a **name pool** (medieval place-name
+parts) so large maps get plausible names without manual work.
+
+## E.7 Parity gate (the definition of done for step 1)
+- Running the generator with the default/override config produces a `world.json` whose
+  rivals match today's positions, difficulties, garrisons, forts, and archetypes (C.2).
+- A test asserts the generated structure equals the committed reference (or matches the
+  rules for each rival). Only after parity do we trust it for bigger maps.
+
+## E.8 Then: prove scale
+Generate a `60x90`, 40-rival map with a new seed; confirm rings populate sensibly,
+spacing holds, difficulties spread 1–`maxDiff`, and the sim loads & runs it unchanged
+(the N-proof audit, D.3). That's the green light that the world can grow freely.
