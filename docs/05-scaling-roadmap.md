@@ -1746,3 +1746,50 @@ The shift should emerge from numbers, not a mode switch:
 
 > This refines Appendix J (tap) and pairs with Appendix P (onboarding) — the first tiers
 > *are* the tutorial. It's the recommended next build after the current Phase 1–3 work.
+
+---
+
+# Appendix T — Build checklist: village progression (implements Appendix S)
+
+Ordered, independently-committable, real file targets. Run `npm test` after each step.
+The existing `keep` building (`content/buildings.json`, maxLevel 6) becomes the **Town
+Hall** spine. **Step 1 (the "Next goal" bar) is pure UI and was built first** — see note.
+
+### Step 1 — "Next goal" bar (UI only, no sim change) ✅ shippable without tests
+- New read-only component in `VillageTab.tsx`: surface the single best **next upgrade**
+  (cheapest non-maxed core building) with a **fill bar** = `min_r(have_r / cost_r)`, plus
+  the current realm rank line for long-term context. A one-tap "do it" button reusing the
+  existing `build` command.
+- Lowest-risk, biggest felt win for "I can't see my progress." **Done — live.**
+
+### Step 2 — Town Hall as the spine
+- Give the player a starting `keep` instance (level 1) in `createInitialState`
+  (`sim.ts`), rendered as the central building.
+- Add `townHallLevel(state)` helper = the player's `keep` instance level (0 if none).
+- UI: make the central 🏰 in the scene tappable → upgrade the Town Hall (its own
+  escalating cost/time via the existing curve). This is the headline "main goal."
+
+### Step 3 — Tier gating (data + sim)
+- Add optional `tier?: number` to `BuildingDef`/`ResearchDef` (default 1) in `types.ts` +
+  `content/*.json`. Assign tiers so each Town Hall level unlocks a sensible batch.
+- Sim: in the `build`/`research` validation, require `townHallLevel(state) >= def.tier`.
+- UI: group the build list by tier; show locked tiers as "Upgrade Town Hall to unlock."
+
+### Step 4 — Economy retune for the active→idle arc (Appendix S.3)
+- `config/balance.json`: lower early storage caps + early build costs (fast clicker
+  opening); steepen later costs; raise early `tokensPerTap` (the early engine).
+- Verify the tap-income-share curve in the headless harness (Appendix Q): dominant early,
+  small (not zero) by mid game.
+
+### Step 5 — Rank-scaled gentle tap (Appendix J)
+- `tap` yield scales with rank tier + soft cap, so it stays a gentle aid once production
+  takes over.
+
+### Step 6 — Migration & tests
+- Bump `SCHEMA_VERSION`; in `migrate`, default existing saves to a `keep` level consistent
+  with their other buildings so they don't regress (Appendix O).
+- Tests: tier gating blocks/permits correctly; `townHallLevel` correct; a generated early
+  game is clicker-dominant, a mid game is production-dominant (harness assertions).
+
+> Build order rationale: Step 1 gives the visible win immediately (and is test-free);
+> Steps 2–3 add the real structure; Steps 4–5 tune the feel; Step 6 protects saves.

@@ -4,7 +4,22 @@ import { buildCost, buildTimeTicks } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import type { BuildingDef } from "../../sim/types";
+import { realmInfo } from "../../sim/territory";
+import type { BuildingDef, ResourceMap } from "../../sim/types";
+
+// The single building upgrade to nudge next: cheapest non-maxed, non-queued core
+// (economy) building, falling back to anything upgradable. Pure read of state.
+const CORE_CATS = new Set(["production", "housing", "storage", "civic"]);
+function totalCost(c: ResourceMap): number {
+  return Object.values(c).reduce((a, v) => a + (v ?? 0), 0);
+}
+function affordFraction(resources: ResourceMap, cost: ResourceMap): number {
+  let frac = 1;
+  for (const [r, amt] of Object.entries(cost)) {
+    if (amt && amt > 0) frac = Math.min(frac, ((resources as Record<string, number>)[r] ?? 0) / amt);
+  }
+  return Math.max(0, Math.min(1, frac));
+}
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military", "fortification"] as const;
 
@@ -27,8 +42,39 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
 
+  // --- "Next goal" progression hint (Appendix S/T step 1) ---
+  const upgradable = state.buildings
+    .map((inst, i) => ({ inst, i, def: buildingById[inst.id] }))
+    .filter((u) => u.inst.level < u.def.maxLevel && !busyIndexes.has(u.i));
+  const cheapest = (arr: typeof upgradable) =>
+    arr.slice().sort((a, b) => totalCost(buildCost(a.def, a.inst.level + 1)) - totalCost(buildCost(b.def, b.inst.level + 1)))[0];
+  const nextGoal = cheapest(upgradable.filter((u) => CORE_CATS.has(u.def.category))) ?? cheapest(upgradable);
+  const goalCost = nextGoal ? buildCost(nextGoal.def, nextGoal.inst.level + 1) : null;
+  const goalPct = goalCost ? Math.round(affordFraction(state.resources, goalCost) * 100) : 0;
+  const rank = realmInfo(state).rank;
+
   return (
     <div className="list">
+      {nextGoal && goalCost && (
+        <div className="card">
+          <div className="row">
+            <h3 style={{ margin: 0 }}>🎯 Next goal</h3>
+            <span className="tag">{rank}</span>
+          </div>
+          <div className="row" style={{ marginTop: 4 }}>
+            <span>{BUILDING_ICONS[nextGoal.inst.id] ?? "🏠"} {nextGoal.def.name} → L{nextGoal.inst.level + 1}</span>
+            <span className="cost">{costString(goalCost)}</span>
+          </div>
+          <div className="bar"><i style={{ width: goalPct + "%" }} /></div>
+          <div className="row" style={{ marginTop: 6 }}>
+            <span className="muted">{canAfford(state, goalCost) ? "Ready — grow your village." : `${goalPct}% of the way there`}</span>
+            <button className="act" disabled={!canAfford(state, goalCost)}
+              onClick={() => dispatch({ type: "build", building: nextGoal.def.id, instanceIndex: nextGoal.i })}>
+              Upgrade
+            </button>
+          </div>
+        </div>
+      )}
       {state.buildQueue.length > 0 && (
         <div className="card">
           <h3>Under construction</h3>
