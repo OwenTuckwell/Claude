@@ -73,26 +73,28 @@ export function resolveSiege(
   defender: SiegeDefender,
   m: Modifiers,
   rngState: number,
+  dMods: Modifiers = m,    // defender's modifiers; defaults to the attacker's for back-compat
 ): SiegeOutcome {
   const lines: string[] = [];
   let rng = rngState;
   const roll = () => { const r = nextRandom(rng); rng = r.state; return 0.95 + 0.1 * r.value; };
 
-  // Build mutable HP pools.
+  // Build mutable HP pools. Each side uses ITS OWN modifiers — so a besieger never
+  // inherits the defender's research bonuses (or vice-versa).
   const atk: Side = { hp: {} };
   for (const [id, c] of Object.entries(attackerArmy)) if (c > 0) atk.hp[id] = c * durability(id, m);
   const def: Side = { hp: {} };
-  for (const [id, c] of Object.entries(defender.garrison)) if (c > 0) def.hp[id] = c * durability(id, m);
+  for (const [id, c] of Object.entries(defender.garrison)) if (c > 0) def.hp[id] = c * durability(id, dMods);
 
   const attackerStart = counts(atk, m);
-  const defenderStart = counts(def, m);
+  const defenderStart = counts(def, dMods);
 
   // ---- Stage 1: walls ----
   let fortHP = 0;
   let towerSlots = 0;
   for (const f of defender.fortifications) {
     const bd = buildingById[f.building];
-    fortHP += (bd?.defense?.health ?? 0) * f.level * (1 + m.defenseHealthPct);
+    fortHP += (bd?.defense?.health ?? 0) * f.level * (1 + dMods.defenseHealthPct);
     towerSlots += (bd?.defense?.garrisonSlots ?? 0) * f.level;
   }
   let breached = true;
@@ -106,7 +108,7 @@ export function resolveSiege(
     }
     // Tower archers fire on the approaching army while the walls stand.
     const archers = Math.min(defender.garrison["archer"] ?? 0, towerSlots);
-    const towerDmgPerRound = archers * effAttack("archer", m) * 1.2;
+    const towerDmgPerRound = archers * effAttack("archer", dMods) * 1.2;
 
     if (siegeDmg <= 0) {
       breached = false;
@@ -129,8 +131,8 @@ export function resolveSiege(
       const atkAlive = totalHP(atk), defAlive = totalHP(def);
       if (atkAlive <= 0 || defAlive <= 0) break;
       const atkDmg = damageOf(atk, m, defender.garrison, false) * roll();
-      const defDmg = damageOf(def, m, attackerArmy, true) * roll();
-      applyDamage(def, atkDmg, m);
+      const defDmg = damageOf(def, dMods, attackerArmy, true) * roll();
+      applyDamage(def, atkDmg, dMods);
       applyDamage(atk, defDmg, m);
     }
     victory = totalHP(def) <= 0 && totalHP(atk) > 0;
@@ -140,7 +142,7 @@ export function resolveSiege(
   }
 
   const survivors = counts(atk, m);
-  const defLeft = counts(def, m);
+  const defLeft = counts(def, dMods);
   const attackerLosses = diff(attackerStart, survivors);
   const defenderLosses = diff(defenderStart, defLeft);
 

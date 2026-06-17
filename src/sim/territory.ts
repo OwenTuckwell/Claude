@@ -4,7 +4,7 @@ import { world, factions, factionById, aiById, balance, troopById, buildingById 
 import { nextRandom } from "./rng";
 import { archetypeInfoFor, archetypeFor, ARCHETYPE, playerStrengthIndex } from "./rivals";
 import { resolveSiege } from "./siege";
-import { computeModifiers } from "./effects";
+import { computeModifiers, emptyModifiers } from "./effects";
 import type { SiegeReport } from "./types";
 import type { GameState, ResourceMap } from "./types";
 import { RESOURCE_IDS } from "./types";
@@ -182,7 +182,8 @@ export function aiTurn(state: GameState): void {
       const tgt = playerBorder[Math.floor(roll(state) * playerBorder.length)];
       // real two-way siege: rival army vs the player's actual home defence
       const army = aiArmy(state.factionStrength[f.id] * info.attackMult * pressure, f.difficulty);
-      const outcome = resolveSiege(army, playerAsDefender(state), mods, state.rngState);
+      // AI attacker has no research bonuses; the player defender keeps theirs (mods).
+      const outcome = resolveSiege(army, playerAsDefender(state), emptyModifiers(), state.rngState, mods);
       state.rngState = outcome.rngState;
       // apply the player's real losses
       for (const [id, c] of Object.entries(outcome.defenderLosses)) state.troops[id] = Math.max(0, (state.troops[id] ?? 0) - c);

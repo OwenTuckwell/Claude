@@ -22,12 +22,17 @@ function emptyTroopStat() {
   return { attack: 0, defense: 0, health: 0 };
 }
 
-export function computeModifiers(state: GameState): Modifiers {
-  const m: Modifiers = {
+/** A zeroed Modifiers — used for sides with no research bonuses (e.g. the AI in a siege). */
+export function emptyModifiers(): Modifiers {
+  return {
     productionPct: {}, storageCapPct: {}, taxYieldPct: 0, buildTimePct: 0,
     happinessFlat: 0, defenseHealthPct: 0, marchSpeedPct: 0, scoutYieldPct: 0, troopStatPct: {},
     unlockedBuildings: new Set(), unlockedTroops: new Set(),
   };
+}
+
+export function computeModifiers(state: GameState): Modifiers {
+  const m: Modifiers = emptyModifiers();
 
   for (const def of researchDefs) {
     const rank = state.research[def.id] ?? 0;

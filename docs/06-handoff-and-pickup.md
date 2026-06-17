@@ -24,7 +24,7 @@ shipped Phases 1–3 plus the world-scaling work. Table below reflects what's ac
 
 > Castle is a **first pass** (defence view + fortification building). The deeper castle
 > from Appendix A (separate `castleQueue`, keep-gated grid, Castellany research branch) is
-> still to do. Save schema is at **v6**.
+> still to do. Save schema is at **v7**.
 
 ## The plan, in one place
 - **`docs/05-scaling-roadmap.md`** — 7 phases + 18 appendices (A–R). Start at the

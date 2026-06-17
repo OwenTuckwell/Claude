@@ -2,7 +2,7 @@
 // application, and pure selectors the UI reads. No I/O, no clock, no React here
 // (docs/03-technical-architecture.md §2).
 import { balance, buildingById, troopById, aiById, world, researchById, factions as allFactions } from "./content";
-import { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
+import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
 import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
@@ -251,7 +251,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     if (mch.phase === "outbound" && mch.kind === "conquer" && mch.targetTile) {
       const { x, y } = mch.targetTile;
       const def = defenderForTile(s.tileOwner, x, y);
-      const outcome = resolveSiege(mch.army, { garrison: def.garrison, fortifications: def.fortifications }, mods, s.rngState);
+      const outcome = resolveSiege(mch.army, { garrison: def.garrison, fortifications: def.fortifications }, mods, s.rngState, emptyModifiers());
       s.rngState = outcome.rngState;
       let loot: ResourceMap = {};
       if (outcome.victory) {
@@ -291,7 +291,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
         garrison: Object.fromEntries(ai.garrison.map((g) => [g.troop, g.count])),
         fortifications: ai.fortifications,
       };
-      const outcome = resolveSiege(mch.army, defender, mods, s.rngState);
+      const outcome = resolveSiege(mch.army, defender, mods, s.rngState, emptyModifiers());
       s.rngState = outcome.rngState;
       const canLoot = outcome.victory && s.tick >= s.aiState[ai.id].lootedUntilTick;
       const loot: ResourceMap = canLoot ? { ...ai.loot } : {};
