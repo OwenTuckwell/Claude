@@ -31,6 +31,7 @@ milestones into a concrete, buildable backlog.
 - **P** — Onboarding & tutorial (the inner ring as teacher; a reusable objective system).
 - **Q** — Headless sim & balance harness (the tool that makes all tuning evidence-based).
 - **R** — Visuals & audio (2.5D style + recommendation, free asset pipeline, SFX + music).
+- **S** — Village progression: active→idle arc + Town-Hall-gated tiers + "next goal" UI.
 
 > **Resuming at home?** Read this top section, then jump to **Appendix H** for the ordered
 > build steps. Appendices B/C/F give the "why" behind them.
@@ -1663,3 +1664,85 @@ The single most important artifact for a hybrid/AI pipeline — a one-page `docs
 Only ship assets that are **CC0 or explicitly free-for-commercial** (or AI-gen you have
 commercial rights to). Maintain `CREDITS.md`. This protects the project if it ever earns
 revenue (the whole point of the Unity-someday path).
+
+---
+
+# Appendix S — Village progression: the active→idle arc + Town-Hall tiers
+
+**Problem (observed in play):** the village is a flat sandbox — build/upgrade anything in
+any order — so progression is invisible; there's no felt "next goal." Fix = give it a
+**visible spine** and an **economy arc**, borrowing structure from incremental games
+without becoming a pure tapper. (Decisions below are locked from discussion.)
+
+## S.1 The core idea — an economy that *shifts* over the game
+Locked direction: **start as an active clicker, then transition to idle/slow.**
+- **Early game (active/clicker):** few production buildings, low storage caps, cheap & fast
+  upgrades. The **market tap is the main resource source** — you tap, buy what you're short
+  on, and upgrade quickly. Fast, satisfying, hooks the player; teaches the market.
+- **Mid/late game (idle/slow):** Town-Hall tiers unlock real production buildings; storage
+  caps grow; upgrades cost exponentially more and take longer. **Passive production becomes
+  the backbone**, offline catch-up matters, and the tap fades to a **gentle accelerant**
+  (refines Appendix J). The "active" itch is replaced by the strategic layer — sieges,
+  scouting, territory.
+
+This single arc fixes both complaints: progression is *visible* (the tap→build loop is
+immediate early), and the late game becomes the slow, systemic MMO the vision wants.
+
+## S.2 The spine — Town-Hall-gated tiers (locked: structure choice)
+One central building — the **Town Hall** (the village's keep/centre) — is the backbone.
+- **Each Town Hall level is the main goal:** costs escalating resources (+ build time) and
+  **unlocks the next tier** of buildings and research.
+- **Tiered unlocks, not a flat list:** every building/research node gets a `tier` (1..N);
+  it's only buildable when `townHall.level >= tier`. You see a handful of options at a
+  time, with a clear "upgrade the Town Hall to unlock more."
+- **Always-visible "Next goal" UI:** a persistent bar — e.g. *"Town Hall L4 → unlocks
+  Quarry & Masonry · needs 500 wood / 300 stone (you have 410 / 180)"* with progress. This
+  is the highest-impact single change for "I can see my progress."
+
+## S.3 Making the active→idle transition actually happen (the tuning)
+The shift should emerge from numbers, not a mode switch:
+- **Early:** low storage caps + cheap upgrades ⇒ tapping a few times meaningfully funds the
+  next upgrade; production is a trickle. Tap dominates by design.
+- **Later:** each tier adds production that scales up, while storage caps rise (idle
+  accumulation becomes viable) and upgrade costs grow exponentially (existing `costGrowth`
+  ~1.6). Production's share of income rises; the tap's *relative* share falls.
+- **Net curve to aim for (verify via the harness, App. Q):** tap = most of income in the
+  first session(s), declining to a small single-digit % by mid game. Never zero (rank
+  scaling, App. J), never dominant late.
+
+## S.4 The tap as the early engine (refines Appendix J)
+- Early tap yield tuned **up** so it genuinely powers the first hour (the clicker hook).
+- Still rank-scaled (App. J) + soft-capped (anti-spam) so it stays a gentle aid, not an
+  exploit, once production takes over.
+- The market buy/sell stays the conversion layer: tap → tokens → buy the specific resource
+  the next Town-Hall upgrade needs.
+
+## S.5 What to build (data + sim + UI)
+- **Data:** add `tier: number` to buildings & research (`content/*.json`); add/define a
+  `town_hall` building with its own escalating cost/time curve and a `unlocksTier` mapping
+  (or simply: tier N unlocked at Town Hall level N).
+- **Sim:** gate `build`/`research` availability on `townHall.level >= def.tier`; expose a
+  `nextGoal(state)` selector (current Town Hall upgrade + its cost/unlocks).
+- **UI:** the "Next goal" bar (village header); group the build list by tier with
+  locked/unlocked states; surface "tap to afford" when short on a resource.
+- **Migration:** new fields are additive/derivable → bump schema, default Town Hall to a
+  level consistent with existing buildings so current saves don't regress (App. O).
+
+## S.6 Risks & guardrails
+- **Don't go full clicker** (locked: hybrid arc, not pure tapper) — passive production must
+  remain the late-game backbone or offline play and the genre identity break.
+- **Avoid late-game idle boredom:** as clicking fades, the *active* layer must be ready —
+  sieges, scouting, territory, AI pressure (Phases 1–2 already provide this). The clicker
+  hands off to strategy, not to nothing.
+- **Tune with the harness (App. Q):** chart tap-share and time-to-Town-Hall-N for the
+  active→idle curve; this is exactly what the harness is for.
+
+## S.7 Build order
+1. Town Hall building + `tier` gating + the "Next goal" bar (the structure — biggest felt
+   win, do first).
+2. Re-tune early economy (storage caps, costs, tap yield) for the active opening.
+3. Verify the active→idle curve in the harness; adjust.
+4. Fold in the rank-scaled tap (App. J) so it stays gentle late.
+
+> This refines Appendix J (tap) and pairs with Appendix P (onboarding) — the first tiers
+> *are* the tutorial. It's the recommended next build after the current Phase 1–3 work.
