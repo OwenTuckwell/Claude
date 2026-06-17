@@ -12,7 +12,15 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
+
+/** The player's Town Hall level — the progression spine that gates building tiers
+ *  (Appendix S/T). 0 if (somehow) absent. */
+export function townHallLevel(s: GameState): number {
+  let lvl = 0;
+  for (const b of s.buildings) if (b.id === "town_hall") lvl = Math.max(lvl, b.level);
+  return lvl;
+}
 const MAX_BUILD_SLOTS = 2;
 
 // ---------- construction helpers ----------
@@ -102,6 +110,7 @@ export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId,
 
 export function createInitialState(seed = 12345): GameState {
   const starting: { id: string; level: number }[] = [
+    { id: "town_hall", level: 1 },
     { id: "hovel", level: 1 }, { id: "hovel", level: 1 },
     { id: "farm", level: 1 }, { id: "farm", level: 1 },
     { id: "woodcutters_lodge", level: 1 }, { id: "quarry", level: 1 },
@@ -380,6 +389,10 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         const queued = s.buildQueue.filter((o) => o.instanceIndex === idx).length;
         targetLevel = inst.level + 1 + queued;
         if (targetLevel > def.maxLevel) return fail("Already at max level.");
+      } else {
+        // New construction is gated by Town Hall level (the progression spine).
+        const tier = def.tier ?? 1;
+        if (townHallLevel(s) < tier) return fail(`Requires Town Hall L${tier}.`);
       }
       for (const reqB of def.requires?.buildings ?? [])
         if (!s.buildings.some((b) => b.id === reqB)) return fail(`Requires ${buildingById[reqB]?.name ?? reqB}.`);

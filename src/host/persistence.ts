@@ -30,13 +30,21 @@ export function migrate(old: unknown): GameState {
   if (o.resources && typeof o.resources === "object")
     for (const r of RESOURCE_IDS) if (typeof o.resources[r] === "number") resources[r] = o.resources[r];
 
+  // Ensure the Town Hall exists (progression spine added in schema v8). Older saves get
+  // one at a level scaled to their build-out so they aren't locked out of construction.
+  let buildings = Array.isArray(o.buildings) ? o.buildings : base.buildings;
+  if (!buildings.some((b: { id: string }) => b.id === "town_hall")) {
+    const level = Math.max(1, Math.min(8, Math.ceil(buildings.length / 3)));
+    buildings = [{ id: "town_hall", level }, ...buildings];
+  }
+
   return {
     ...base,
     resources,
     population: typeof o.population === "number" ? o.population : base.population,
     rationLevel: o.rationLevel ?? base.rationLevel,
     taxRate: typeof o.taxRate === "number" ? o.taxRate : base.taxRate,
-    buildings: Array.isArray(o.buildings) ? o.buildings : base.buildings,
+    buildings,
     buildQueue: Array.isArray(o.buildQueue) ? o.buildQueue : [],
     research: o.research && typeof o.research === "object" ? o.research : {},
     troops: o.troops && typeof o.troops === "object" ? o.troops : {},

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  advance, applyCommand, createInitialState, netProduction, storageCaps,
+  advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel,
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
@@ -74,6 +74,22 @@ describe("commands", () => {
     expect(r.result.ok).toBe(true);
     expect(r.state.resources.rp).toBeLessThan(500);
     expect(computeModifiers(r.state).unlockedBuildings.has("iron_mine")).toBe(true);
+  });
+
+  it("starts with a Town Hall (the progression spine)", () => {
+    const s = fresh();
+    expect(s.buildings.some((b) => b.id === "town_hall")).toBe(true);
+    expect(townHallLevel(s)).toBe(1);
+  });
+
+  it("gates new construction behind Town Hall level (tier)", () => {
+    const rich = (s: GameState): GameState => ({ ...s, resources: { ...s.resources, wood: 9999, stone: 9999 } });
+    const s = fresh(); // Town Hall L1
+    // tavern is tier 2 -> blocked at L1
+    expect(applyCommand(rich(s), { type: "build", building: "tavern", instanceIndex: null }).result.ok).toBe(false);
+    // raise Town Hall to L2 -> now allowed
+    const s2 = rich({ ...s, buildings: [{ id: "town_hall", level: 2 }, ...s.buildings.filter((b) => b.id !== "town_hall")] });
+    expect(applyCommand(s2, { type: "build", building: "tavern", instanceIndex: null }).result.ok).toBe(true);
   });
 
   it("rejects unaffordable actions", () => {

@@ -11,6 +11,7 @@ export const RESOURCE_META: Record<ResourceId, { label: string; icon: string }> 
 };
 
 export const BUILDING_ICONS: Record<string, string> = {
+  town_hall: "🏛️",
   farm: "🌾", windmill: "🌬️", woodcutters_lodge: "🌲", quarry: "🪨", iron_mine: "⛏️",
   hovel: "🛖", granary: "🏚️", stockpile: "📦", warehouse: "🏬", chapel: "⛪", tavern: "🍺",
   scholars_hall: "📚", university: "🎓", marketplace: "🏪",

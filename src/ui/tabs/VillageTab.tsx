@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks } from "../../sim/sim";
+import { buildCost, buildTimeTicks, townHallLevel } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
@@ -52,6 +52,8 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const goalCost = nextGoal ? buildCost(nextGoal.def, nextGoal.inst.level + 1) : null;
   const goalPct = goalCost ? Math.round(affordFraction(state.resources, goalCost) * 100) : 0;
   const rank = realmInfo(state).rank;
+  const thLevel = townHallLevel(state);
+  const townHallIdx = state.buildings.findIndex((b) => b.id === "town_hall");
 
   return (
     <div className="list">
@@ -109,12 +111,16 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
           <div className="cloud" style={{ top: "30%", animationDelay: "-18s", fontSize: 20 }}>☁️</div>
           <div className="cloud" style={{ top: "6%", animationDelay: "-32s", fontSize: 30 }}>☁️</div>
 
-          {/* central keep */}
-          <div className="keep" title="Your keep">
-            <div className="keep-ic">🏰</div>
-          </div>
+          {/* central Town Hall — the progression spine (Appendix S/T) */}
+          <button className="keep" title="Town Hall — upgrade to unlock more"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+            onClick={() => { if (townHallIdx >= 0) { setSel(townHallIdx === sel ? null : townHallIdx); setBuilding(false); } }}>
+            <div className="keep-ic">🏛️</div>
+            <div className="hut-lv">Town Hall L{thLevel}</div>
+          </button>
 
           {state.buildings.map((inst, idx) => {
+            if (inst.id === "town_hall") return null; // shown as the central building
             const slot = SLOTS[idx % SLOTS.length];
             return (
               <button key={idx} className={"hut" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
@@ -161,17 +167,20 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
             <button className="ghost" onClick={() => setBuilding(false)}>Close</button></div>
           <div className="list" style={{ marginTop: 6 }}>
             {CATEGORY_ORDER.flatMap((cat) =>
-              buildingDefs.filter((d) => d.category === cat && isBuildingUnlocked(d.id, mods)).map((def) => {
+              buildingDefs.filter((d) => d.category === cat && d.id !== "town_hall" && isBuildingUnlocked(d.id, mods)).map((def) => {
                 const cost = buildCost(def, 1);
                 const missingReq = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
+                const tier = def.tier ?? 1;
+                const tierLocked = thLevel < tier;
                 return (
                   <div className="row" key={def.id}>
                     <div>
                       <strong>{BUILDING_ICONS[def.id] ?? "🏠"} {def.name}</strong> <span className="tag">{def.category}</span>
                       <div className="cost">{costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
+                      {tierLocked && <div className="cost" style={{ color: "var(--bad)" }}>🔒 needs Town Hall L{tier}</div>}
                       {missingReq && <div className="cost">needs {buildingById[missingReq]?.name}</div>}
                     </div>
-                    <button className="act" disabled={!!missingReq || !canAfford(state, cost)}
+                    <button className="act" disabled={tierLocked || !!missingReq || !canAfford(state, cost)}
                       onClick={() => dispatch({ type: "build", building: def.id, instanceIndex: null })}>Build</button>
                   </div>
                 );

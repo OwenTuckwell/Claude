@@ -24,6 +24,7 @@ export interface BuildingDef {
   housingBonus?: number;
   happiness?: number;
   defense?: { health?: number; garrisonSlots?: number };
+  tier?: number;        // Town Hall level required to construct (default 1); Appendix S/T
   maxLevel: number;
   costBase: ResourceMap;
   costGrowth: number;
