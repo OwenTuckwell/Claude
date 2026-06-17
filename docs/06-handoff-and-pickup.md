@@ -17,6 +17,7 @@ shipped Phases 1–3 plus the world-scaling work. Table below reflects what's ac
 | Scaling **AI** rivals — archetypes (turtle/aggressor/economic) + rubber-band | ✅ | ✅ | Appendix B, C, I |
 | **Fog of war** / scouting (intel levels, scout-a-tile, fuzzed intel) | ✅ | ✅ | Appendix G |
 | Home **castle** development screen (defence rating + fortifications) | ✅ | ✅ (first pass) | Appendix A, L |
+| **Village progression** — Town Hall spine + tier-gated build list + "next goal" bar | ✅ | ✅ | Appendix S, T |
 | Tap/market scaling | ✅ | ❌ not coded | Appendix J |
 | Research-tree cleanup | ✅ | partial (tree built, not re-tiered) | Appendix K |
 | Prestige / politics / boosts | ✅ | ❌ not coded | Appendix M |

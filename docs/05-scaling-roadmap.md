@@ -1762,18 +1762,20 @@ Hall** spine. **Step 1 (the "Next goal" bar) is pure UI and was built first** �
   existing `build` command.
 - Lowest-risk, biggest felt win for "I can't see my progress." **Done — live.**
 
-### Step 2 — Town Hall as the spine
-- Give the player a starting `keep` instance (level 1) in `createInitialState`
-  (`sim.ts`), rendered as the central building.
-- Add `townHallLevel(state)` helper = the player's `keep` instance level (0 if none).
-- UI: make the central 🏰 in the scene tappable → upgrade the Town Hall (its own
-  escalating cost/time via the existing curve). This is the headline "main goal."
+### Step 2 — Town Hall as the spine ✅ DONE
+- Added a dedicated **`town_hall`** building (civic, +happiness/level) as the spine —
+  cleaner than overloading the castle `keep`. Player starts with one at level 1.
+- `townHallLevel(state)` helper in `sim.ts`; schema bumped to v8 with migration that
+  injects a Town Hall (level scaled to build-out) into older saves.
+- UI: the central 🏛️ in the village scene is the Town Hall, tappable → upgrade.
 
-### Step 3 — Tier gating (data + sim)
-- Add optional `tier?: number` to `BuildingDef`/`ResearchDef` (default 1) in `types.ts` +
-  `content/*.json`. Assign tiers so each Town Hall level unlocks a sensible batch.
-- Sim: in the `build`/`research` validation, require `townHallLevel(state) >= def.tier`.
-- UI: group the build list by tier; show locked tiers as "Upgrade Town Hall to unlock."
+### Step 3 — Tier gating (data + sim) ✅ DONE
+- Added `tier?: number` to `BuildingDef` (default 1) + a tier on every building in
+  `content/buildings.json` (early tiers permissive; deeper/military/castle gate higher).
+- Sim: `build` validation requires `townHallLevel(state) >= def.tier` for **new**
+  construction (upgrades stay free). Tested.
+- UI: build list shows 🔒 locked tiers ("needs Town Hall L{n}").
+- (Research tier-gating deferred — buildings carry the structure for now.)
 
 ### Step 4 — Economy retune for the active→idle arc (Appendix S.3)
 - `config/balance.json`: lower early storage caps + early build costs (fast clicker
