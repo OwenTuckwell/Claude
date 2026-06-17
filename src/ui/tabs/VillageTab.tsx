@@ -1,82 +1,31 @@
 import { useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks, townHallLevel } from "../../sim/sim";
+import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { realmInfo } from "../../sim/territory";
-import type { BuildingDef, ResourceMap } from "../../sim/types";
+import type { BuildingDef } from "../../sim/types";
 
-// The single building upgrade to nudge next: cheapest non-maxed, non-queued core
-// (economy) building, falling back to anything upgradable. Pure read of state.
-const CORE_CATS = new Set(["production", "housing", "storage", "civic"]);
-function totalCost(c: ResourceMap): number {
-  return Object.values(c).reduce((a, v) => a + (v ?? 0), 0);
-}
-function affordFraction(resources: ResourceMap, cost: ResourceMap): number {
-  let frac = 1;
-  for (const [r, amt] of Object.entries(cost)) {
-    if (amt && amt > 0) frac = Math.min(frac, ((resources as Record<string, number>)[r] ?? 0) / amt);
-  }
-  return Math.max(0, Math.min(1, frac));
-}
-
-const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military", "fortification"] as const;
-
-// Organic scatter of plots around the central keep (percentage coords).
-const SLOTS = [
-  { x: 30, y: 28 }, { x: 50, y: 20 }, { x: 70, y: 28 },
-  { x: 18, y: 42 }, { x: 82, y: 42 },
-  { x: 32, y: 62 }, { x: 50, y: 70 }, { x: 68, y: 62 },
-  { x: 14, y: 62 }, { x: 86, y: 62 },
-  { x: 38, y: 44 }, { x: 62, y: 44 },
-  { x: 24, y: 80 }, { x: 50, y: 88 }, { x: 76, y: 80 },
-  { x: 40, y: 14 }, { x: 60, y: 14 }, { x: 12, y: 30 }, { x: 88, y: 30 },
-];
+const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
 
 export function VillageTab({ state, mods, dispatch }: TabProps) {
   const [sel, setSel] = useState<number | null>(null);
   const [building, setBuilding] = useState(false);
+  const { cols, rows } = villageGrid();
+  const thLevel = townHallLevel(state);
 
   const busyIndexes = new Set(state.buildQueue.map((o) => o.instanceIndex).filter((i): i is number => i !== null));
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
+  const selIsVillage = !!selInst && isVillageBuilding(selInst.id);
 
-  // --- "Next goal" progression hint (Appendix S/T step 1) ---
-  const upgradable = state.buildings
-    .map((inst, i) => ({ inst, i, def: buildingById[inst.id] }))
-    .filter((u) => u.inst.level < u.def.maxLevel && !busyIndexes.has(u.i));
-  const cheapest = (arr: typeof upgradable) =>
-    arr.slice().sort((a, b) => totalCost(buildCost(a.def, a.inst.level + 1)) - totalCost(buildCost(b.def, b.inst.level + 1)))[0];
-  const nextGoal = cheapest(upgradable.filter((u) => CORE_CATS.has(u.def.category))) ?? cheapest(upgradable);
-  const goalCost = nextGoal ? buildCost(nextGoal.def, nextGoal.inst.level + 1) : null;
-  const goalPct = goalCost ? Math.round(affordFraction(state.resources, goalCost) * 100) : 0;
-  const rank = realmInfo(state).rank;
-  const thLevel = townHallLevel(state);
-  const townHallIdx = state.buildings.findIndex((b) => b.id === "town_hall");
+  // village buildings with a grid position
+  const placed = state.buildings
+    .map((inst, idx) => ({ inst, idx }))
+    .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
 
   return (
     <div className="list">
-      {nextGoal && goalCost && (
-        <div className="card">
-          <div className="row">
-            <h3 style={{ margin: 0 }}>🎯 Next goal</h3>
-            <span className="tag">{rank}</span>
-          </div>
-          <div className="row" style={{ marginTop: 4 }}>
-            <span>{BUILDING_ICONS[nextGoal.inst.id] ?? "🏠"} {nextGoal.def.name} → L{nextGoal.inst.level + 1}</span>
-            <span className="cost">{costString(goalCost)}</span>
-          </div>
-          <div className="bar"><i style={{ width: goalPct + "%" }} /></div>
-          <div className="row" style={{ marginTop: 6 }}>
-            <span className="muted">{canAfford(state, goalCost) ? "Ready — grow your village." : `${goalPct}% of the way there`}</span>
-            <button className="act" disabled={!canAfford(state, goalCost)}
-              onClick={() => dispatch({ type: "build", building: nextGoal.def.id, instanceIndex: nextGoal.i })}>
-              Upgrade
-            </button>
-          </div>
-        </div>
-      )}
       {state.buildQueue.length > 0 && (
         <div className="card">
           <h3>Under construction</h3>
@@ -97,43 +46,38 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
         </div>
       )}
 
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="scene">
-          <svg className="scene-bg" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <rect width="100" height="100" fill="#4a6b2e" />
-            <path d="M0,70 Q25,60 50,72 T100,68 L100,100 L0,100 Z" fill="#43622a" />
-            <path d="M-5,40 Q30,48 55,38 Q80,30 105,44" stroke="#3a78a8" strokeWidth="5" fill="none" opacity="0.8" />
-            <path d="M50,50 C46,64 40,78 28,94" stroke="#b9a06a" strokeWidth="3" fill="none" opacity="0.6" />
-            <path d="M50,50 C58,62 70,72 84,84" stroke="#b9a06a" strokeWidth="3" fill="none" opacity="0.6" />
-          </svg>
-
-          <div className="cloud" style={{ top: "12%", animationDelay: "0s" }}>☁️</div>
-          <div className="cloud" style={{ top: "30%", animationDelay: "-18s", fontSize: 20 }}>☁️</div>
-          <div className="cloud" style={{ top: "6%", animationDelay: "-32s", fontSize: 30 }}>☁️</div>
-
-          {/* central Town Hall — the progression spine (Appendix S/T) */}
-          <button className="keep" title="Town Hall — upgrade to unlock more"
-            style={{ background: "none", border: "none", cursor: "pointer" }}
-            onClick={() => { if (townHallIdx >= 0) { setSel(townHallIdx === sel ? null : townHallIdx); setBuilding(false); } }}>
-            <div className="keep-ic">🏛️</div>
-            <div className="hut-lv">Town Hall L{thLevel}</div>
-          </button>
-
-          {state.buildings.map((inst, idx) => {
-            if (inst.id === "town_hall") return null; // shown as the central building
-            const slot = SLOTS[idx % SLOTS.length];
-            return (
-              <button key={idx} className={"hut" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
-                style={{ left: slot.x + "%", top: slot.y + "%" }}
-                onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-                <span className="hut-ic">{BUILDING_ICONS[inst.id] ?? "🏠"}</span>
-                <span className="hut-lv">{inst.level}</span>
-              </button>
-            );
-          })}
+      <div className="card" style={{ padding: 8 }}>
+        <div className="row" style={{ marginBottom: 6 }}>
+          <h3 style={{ margin: 0 }}>🏡 Your village</h3>
+          <span className="tag">Town Hall L{thLevel}</span>
         </div>
-        <div className="row" style={{ padding: "8px 10px" }}>
-          <span className="muted">Tap a building to inspect or upgrade it.</span>
+        <div className="vgrid-wrap" style={{ position: "relative" }}>
+          <svg className="vgrid" width={cols * 40} height={rows * 40} viewBox={`0 0 ${cols} ${rows}`}
+            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}>
+            {Array.from({ length: cols * rows }, (_, i) => {
+              const x = i % cols, y = Math.floor(i / cols);
+              const occupied = placed.some(({ inst }) => inst.gx === x && inst.gy === y);
+              const isMoveTarget = selIsVillage && !occupied;
+              return <rect key={i} x={x} y={y} width={1} height={1}
+                fill={(x + y) % 2 ? "#7a8c4e" : "#728345"} stroke="rgba(46,38,32,0.18)" strokeWidth={0.03}
+                style={{ cursor: isMoveTarget ? "copy" : "default" }}
+                onClick={() => { if (isMoveTarget && sel !== null) dispatch({ type: "moveBuilding", index: sel, gx: x, gy: y }); }} />;
+            })}
+            {selInst && selIsVillage && selInst.gx !== undefined &&
+              <rect x={selInst.gx} y={selInst.gy} width={1} height={1} fill="none" stroke="#b07d1a" strokeWidth={0.12} />}
+          </svg>
+          {placed.map(({ inst, idx }) => (
+            <button key={idx} className={"vbuild" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
+              style={{ left: `${((inst.gx! + 0.5) / cols) * 100}%`, top: `${((inst.gy! + 0.5) / rows) * 100}%` }}
+              title={buildingById[inst.id].name}
+              onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
+              <span className="vb-ic">{BUILDING_ICONS[inst.id] ?? "🏠"}</span>
+              <span className="vb-lv">{inst.level}</span>
+            </button>
+          ))}
+        </div>
+        <div className="row" style={{ marginTop: 6 }}>
+          <span className="muted">{selIsVillage ? "Tap an empty plot to move it." : "Tap a building to inspect it."}</span>
           <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
         </div>
       </div>
@@ -142,6 +86,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
         <div className="card">
           <div className="row">
             <h3 style={{ margin: 0 }}>{BUILDING_ICONS[selInst.id]} {selDef.name} <span className="tag">L{selInst.level}</span></h3>
+            <button className="ghost" onClick={() => setSel(null)}>Close</button>
           </div>
           <div className="muted">{describe(selDef)}</div>
           {(() => {
@@ -150,7 +95,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
             const cost = buildCost(selDef, next);
             return (
               <div className="row" style={{ marginTop: 8 }}>
-                <div className="cost">{maxed ? "Fully upgraded." : `${costString(cost)} · ${fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)}`}</div>
+                <div className="cost">{maxed ? "Fully upgraded." : `${costString(cost)} · ${fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)} · +${Math.round(balance.researchPerLevel * next)} 📜`}</div>
                 <button className="act" disabled={maxed || !canAfford(state, cost)}
                   onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
                   {maxed ? "Max" : `Upgrade → L${next}`}
@@ -197,6 +142,7 @@ function describe(def: BuildingDef): string {
   const bits: string[] = [];
   if (def.produces && Object.keys(def.produces).length) bits.push("produces " + Object.entries(def.produces).map(([r, v]) => `${v}/lvl ${r}`).join(", "));
   if (def.housingBonus) bits.push(`+${def.housingBonus} housing/lvl`);
+  if (def.researchBonus) bits.push(`+${Math.round(def.researchBonus * 100)}% research/lvl`);
   if (def.storageBonus && Object.keys(def.storageBonus).length) bits.push("storage " + Object.entries(def.storageBonus).map(([r, v]) => `+${v} ${r}/lvl`).join(", "));
   if (def.happiness) bits.push(`+${def.happiness} happiness`);
   if (def.labour) bits.push(`${def.labour} workers`);

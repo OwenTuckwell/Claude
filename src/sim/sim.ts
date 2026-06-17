@@ -7,12 +7,12 @@ import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
 import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
 import type {
-  BuildingDef, Command, CommandResult, GameState, RationLevel,
+  BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -69,6 +69,38 @@ export function staffing(s: GameState): number {
   return d > 0 ? Math.min(1, s.population / d) : 1;
 }
 
+/** Bonus fraction to research-per-level from civic buildings (Scholar's Hall, University). */
+export function researchBonus(s: GameState): number {
+  let b = 0;
+  for (const inst of s.buildings) b += (buildingById[inst.id].researchBonus ?? 0) * inst.level;
+  return b;
+}
+
+// ---- Village layout grid (drag/arrange your home village) ----
+export const villageGrid = () => balance.villageGrid;
+/** Buildings shown on the village grid (fortifications live in the Castle). */
+export function isVillageBuilding(id: string): boolean {
+  return buildingById[id].category !== "fortification";
+}
+export function firstFreeVillageCell(buildings: BuildingInstance[]): { gx: number; gy: number } {
+  const { cols, rows } = balance.villageGrid;
+  const taken = new Set(buildings.filter((b) => b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) return { gx: x, gy: y };
+  return { gx: 0, gy: 0 };
+}
+/** Assign grid cells to any village building missing one (init & save migration). */
+export function placeVillageBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
+  const taken = new Set<string>();
+  for (const b of buildings) if (b.gx !== undefined && b.gy !== undefined) taken.add(`${b.gx},${b.gy}`);
+  const { cols, rows } = balance.villageGrid;
+  const free = (): { gx: number; gy: number } => {
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) { taken.add(`${x},${y}`); return { gx: x, gy: y }; }
+    return { gx: 0, gy: 0 };
+  };
+  for (const b of buildings) if (isVillageBuilding(b.id) && b.gx === undefined) { const c = free(); b.gx = c.gx; b.gy = c.gy; }
+  return buildings;
+}
+
 function taxHappiness(rate: number): number {
   let best = balance.taxHappiness[0];
   for (const e of balance.taxHappiness) if (e.rate <= rate + 1e-9) best = e;
@@ -116,6 +148,7 @@ export function createInitialState(seed = 12345): GameState {
     { id: "woodcutters_lodge", level: 1 }, { id: "quarry", level: 1 },
     { id: "chapel", level: 1 }, { id: "granary", level: 1 }, { id: "stockpile", level: 1 },
   ];
+  placeVillageBuildings(starting);
   const aiState: GameState["aiState"] = {};
   for (const v of world.aiVillages) aiState[v.id] = { lootedUntilTick: 0 };
   return {
@@ -204,9 +237,17 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
   }
   s.buildQueue = s.buildQueue.filter((o) => {
     if (o.startedTick !== null && s.tick - o.startedTick >= o.durationTicks) {
-      if (o.instanceIndex === null) s.buildings.push({ id: o.building, level: 1 });
-      else s.buildings[o.instanceIndex].level = o.targetLevel;
-      log(s, `${buildingById[o.building].name} reaches level ${o.targetLevel}.`, "good");
+      if (o.instanceIndex === null) {
+        if (isVillageBuilding(o.building)) {
+          const cell = firstFreeVillageCell(s.buildings);
+          s.buildings.push({ id: o.building, level: 1, gx: cell.gx, gy: cell.gy });
+        } else s.buildings.push({ id: o.building, level: 1 });
+      } else s.buildings[o.instanceIndex].level = o.targetLevel;
+      // Research is earned by DEVELOPING: each building level gained grants RP,
+      // amplified by civic buildings (scholars' hall, university).
+      const rp = Math.round(balance.researchPerLevel * o.targetLevel * (1 + researchBonus(s)));
+      s.resources.rp += rp;
+      log(s, `${buildingById[o.building].name} reaches level ${o.targetLevel}. +${rp} research.`, "good");
       return false;
     }
     return true;
@@ -536,6 +577,18 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         army: {}, phase: "outbound", arriveTick: s.tick + travelTicks, travelTicks, targetTile: { x: cmd.x, y: cmd.y },
       });
       log(s, `Scouts head out to survey (${cmd.x},${cmd.y}).`, "info");
+      return ok();
+    }
+
+    case "moveBuilding": {
+      const inst = s.buildings[cmd.index];
+      if (!inst) return fail("No such building.");
+      if (!isVillageBuilding(inst.id)) return fail("That isn't a village building.");
+      const { cols, rows } = balance.villageGrid;
+      if (cmd.gx < 0 || cmd.gy < 0 || cmd.gx >= cols || cmd.gy >= rows) return fail("Off the grid.");
+      const occ = s.buildings.findIndex((b, i) => i !== cmd.index && isVillageBuilding(b.id) && b.gx === cmd.gx && b.gy === cmd.gy);
+      if (occ >= 0) { s.buildings[occ].gx = inst.gx; s.buildings[occ].gy = inst.gy; } // swap plots
+      inst.gx = cmd.gx; inst.gy = cmd.gy;
       return ok();
     }
 

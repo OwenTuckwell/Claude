@@ -23,6 +23,7 @@ export interface BuildingDef {
   storageBonus?: ResourceMap;
   housingBonus?: number;
   happiness?: number;
+  researchBonus?: number;   // +fraction to RP earned per building level (civic buildings)
   defense?: { health?: number; garrisonSlots?: number };
   tier?: number;        // Town Hall level required to construct (default 1); Appendix S/T
   maxLevel: number;
@@ -87,6 +88,8 @@ export interface Balance {
   startingPopulation: number;
   buildTimeReductionCap: number;
   productionScale: number;        // global multiplier on all building output (slow-game knob)
+  researchPerLevel: number;       // RP awarded per building level gained (research = development)
+  villageGrid: { cols: number; rows: number };
   market: {
     tokensPerTap: number;
     buyPriceTokens: Partial<Record<ResourceId, number>>;   // tokens to buy 1 unit
@@ -140,7 +143,7 @@ export interface Faction {
 
 // ---- Mutable game state (serializable; this is the save format) ----
 
-export interface BuildingInstance { id: string; level: number; }
+export interface BuildingInstance { id: string; level: number; gx?: number; gy?: number; }
 
 export interface BuildOrder {
   building: string;       // building def id
@@ -224,6 +227,7 @@ export type Command =
   | { type: "sell"; resource: ResourceId; amount: number }
   | { type: "scout" }
   | { type: "scoutTile"; x: number; y: number }
+  | { type: "moveBuilding"; index: number; gx: number; gy: number }
   | { type: "conquer"; x: number; y: number; army: Record<string, number> };
 
 export interface CommandResult { ok: boolean; error?: string; }

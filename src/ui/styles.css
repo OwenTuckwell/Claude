@@ -116,6 +116,15 @@ button.ghost { background: var(--panel2); color: var(--ink); border: 1px solid v
 .mcell.ai.looted { opacity: 0.4; }
 .mcell.sel { outline: 2px solid var(--gold); outline-offset: -2px; z-index: 1; }
 
+/* village grid (drag/arrange your home) */
+.vgrid { background: #5f6f3c; }
+.vbuild { position: absolute; transform: translate(-50%, -50%); background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 0; line-height: 1; }
+.vbuild .vb-ic { font-size: 26px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4)); }
+.vbuild .vb-lv { margin-top: -4px; font-size: 9px; font-weight: 800; color: #2a1f10; background: var(--gold); border-radius: 99px; padding: 0 5px; }
+.vbuild.sel .vb-ic { transform: scale(1.12); }
+.vbuild.busy::after { content: "⏳"; position: absolute; top: -8px; right: -10px; font-size: 11px; }
+.vbuild:active { transform: translate(-50%, -50%) scale(0.92); }
+
 /* castle screen */
 .castle { background: linear-gradient(#6f8246, #5f6f3c); border: 1px solid var(--line); border-radius: 10px; padding: 16px 8px 12px; }
 .castle-keep { font-size: 52px; line-height: 1; filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4)); animation: sway 5s ease-in-out infinite; transform-origin: bottom center; display: inline-block; }
