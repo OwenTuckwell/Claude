@@ -28,6 +28,9 @@ yet; this is what the prototype gets built against.
    where `04` leaves off.
 7. **[art-style.md](art-style.md)** — the art style guide: perspective, palette (hex),
    tile specs, the AI generation prompt template, and the asset conformance checklist.
+8. **[asset-pipeline.md](asset-pipeline.md)** — how to generate the art for free: Blender
+   vs AI gen (Higgsfield), free CC0 packs (Kenney/Quaternius), the render-to-sprite trick,
+   and next steps.
 8. **[06-handoff-and-pickup.md](06-handoff-and-pickup.md)** — **READ FIRST when resuming.**
    Current status (design done, build just started), plan-vs-built table, and the
    copy-paste pickup prompt for another machine.
