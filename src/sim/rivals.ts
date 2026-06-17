@@ -22,13 +22,14 @@ export interface ArchetypeInfo {
   expand: number;       // neutral tiles claimed per AI turn
   attackMult: number;   // multiplier on attack power vs the player
   willing: number;      // 0..1 willingness to launch an attack at the player
+  economy: number;      // strength growth per turn (snowball rate)
   blurb: string;
 }
 
 export const ARCHETYPE: Record<Archetype, ArchetypeInfo> = {
-  turtle:    { label: "Turtle",    expand: 1, attackMult: 0.85, willing: 0.25, blurb: "Defensive — hard to crack, rarely attacks." },
-  aggressor: { label: "Aggressor", expand: 1, attackMult: 1.25, willing: 1.0,  blurb: "Warlike — raids your borders and sieges back." },
-  economic:  { label: "Economic",  expand: 2, attackMult: 1.0,  willing: 0.5,  blurb: "Expansionist — snowballs if left unchecked." },
+  turtle:    { label: "Turtle",    expand: 1, attackMult: 0.85, willing: 0.25, economy: 0.5, blurb: "Defensive — hard to crack, rarely attacks." },
+  aggressor: { label: "Aggressor", expand: 1, attackMult: 1.25, willing: 1.0,  economy: 0.4, blurb: "Warlike — raids your borders and sieges back." },
+  economic:  { label: "Economic",  expand: 2, attackMult: 1.0,  willing: 0.5,  economy: 0.9, blurb: "Expansionist — snowballs if left unchecked." },
 };
 
 export function archetypeInfoFor(factionId: string): ArchetypeInfo {

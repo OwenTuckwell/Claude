@@ -1,7 +1,7 @@
 // The deterministic simulation core: initial state, the per-tick update, command
 // application, and pure selectors the UI reads. No I/O, no clock, no React here
 // (docs/03-technical-architecture.md §2).
-import { balance, buildingById, troopById, aiById, world, researchById } from "./content";
+import { balance, buildingById, troopById, aiById, world, researchById, factions as allFactions } from "./content";
 import { computeModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 const MAX_BUILD_SLOTS = 2;
 
 // ---------- construction helpers ----------
@@ -126,6 +126,7 @@ export function createInitialState(seed = 12345): GameState {
     aiState,
     tileOwner: initOwnership(),
     intel: {},
+    factionStrength: Object.fromEntries(allFactions.filter((f) => !f.isPlayer).map((f) => [f.id, f.difficulty * 8])),
     reports: [],
     log: [{ tick: 0, text: "Your village is founded. Long may it stand.", kind: "info" }],
     nextId: 1,

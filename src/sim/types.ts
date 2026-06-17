@@ -170,7 +170,7 @@ export interface March {
 
 export interface SiegeReport {
   id: string;
-  kind: "assault" | "scout" | "conquer";
+  kind: "assault" | "scout" | "conquer" | "defense";
   tick: number;
   targetName: string;
   victory: boolean;
@@ -202,6 +202,7 @@ export interface GameState {
   aiState: Record<string, AiVillageState>;
   tileOwner: Record<string, string>;   // "x,y" -> faction id (incl. "player", "neutral")
   intel: Record<string, number>;       // "x,y" -> recon level reached (2 scouted, 3 surveilled)
+  factionStrength: Record<string, number>; // rival economic strength, grows over time
   reports: SiegeReport[];
   log: LogEntry[];
   nextId: number;

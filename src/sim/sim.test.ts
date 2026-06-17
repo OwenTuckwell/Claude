@@ -162,6 +162,13 @@ describe("territory, conquest & rank", () => {
     expect(after.intel[key(cap.x, cap.y)] ?? 0).toBeGreaterThanOrEqual(2);
   });
 
+  it("rivals grow economically over time (AI economy)", () => {
+    const s = createInitialState(2);
+    const before = { ...s.factionStrength };
+    const after = advance(s, 900); // several AI turns
+    expect(Object.keys(after.factionStrength).some((id) => after.factionStrength[id] > (before[id] ?? 0))).toBe(true);
+  });
+
   it("crowns the faction holding a third of the realm as King", () => {
     const s = createInitialState(1);
     const need = Math.ceil(landTiles().length * 0.34);

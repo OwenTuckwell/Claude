@@ -2,7 +2,10 @@
 // Deterministic and pure-ish: aiTurn mutates the passed state (called from the tick).
 import { world, factions, factionById, aiById, balance, troopById, buildingById } from "./content";
 import { nextRandom } from "./rng";
-import { archetypeInfoFor, playerStrengthIndex } from "./rivals";
+import { archetypeInfoFor, archetypeFor, ARCHETYPE, playerStrengthIndex } from "./rivals";
+import { resolveSiege } from "./siege";
+import { computeModifiers } from "./effects";
+import type { SiegeReport } from "./types";
 import type { GameState, ResourceMap } from "./types";
 import { RESOURCE_IDS } from "./types";
 
@@ -123,12 +126,29 @@ export function playerDefensePower(state: GameState): number {
   return p;
 }
 
-function factionAttackPower(tileOwner: Record<string, string>, id: string): number {
-  const diff = factionById[id]?.difficulty ?? 1;
-  return 6 + ownedCount(tileOwner, id) * 1.5 + diff * 6;
+function roll(state: GameState): number { const r = nextRandom(state.rngState); state.rngState = r.state; return r.value; }
+
+/** The player's home defence as a SiegeDefender: standing army + fortifications. */
+function playerAsDefender(state: GameState): { garrison: Record<string, number>; fortifications: { building: string; level: number }[] } {
+  const garrison: Record<string, number> = {};
+  for (const [id, c] of Object.entries(state.troops)) if (c > 0) garrison[id] = c;
+  const fortifications = state.buildings
+    .filter((b) => buildingById[b.id].category === "fortification")
+    .map((b) => ({ building: b.id, level: b.level }));
+  return { garrison, fortifications };
 }
 
-function roll(state: GameState): number { const r = nextRandom(state.rngState); state.rngState = r.state; return r.value; }
+/** Turn a rival's abstract strength into a concrete attacking army (incl. siege engines
+ *  so walled players can actually be threatened). */
+function aiArmy(strength: number, diff: number): Record<string, number> {
+  const n = Math.max(4, Math.round(strength));
+  const army: Record<string, number> = {
+    spearman: Math.round(n * 0.4), archer: Math.round(n * 0.3),
+    swordsman: Math.round(n * 0.2), horseman: Math.round(n * 0.1),
+  };
+  if (diff >= 2) army.catapult = Math.max(1, Math.round(n * 0.06));
+  return army;
+}
 
 /** AI factions act on an interval: seize an undefended player border tile, else grow into
  *  neutral land. The player's capital can never be taken (no total wipeout). */
@@ -138,10 +158,14 @@ export function aiTurn(state: GameState): void {
   const playerCap = key(world.player.tile.x, world.player.tile.y);
 
   const pressure = 1 + Math.min(0.5, playerStrengthIndex(state) * 0.002);
+  const mods = computeModifiers(state);
   for (const f of factions) {
     if (f.isPlayer) continue;
     if (state.tileOwner[key(f.capital.x, f.capital.y)] !== f.id) continue; // defeated
     const info = archetypeInfoFor(f.id);
+    // light AI economy: strength snowballs over time per archetype × difficulty
+    const grown = (state.factionStrength[f.id] ?? f.difficulty * 8) + ARCHETYPE[archetypeFor(f.id)].economy * f.difficulty * 0.6;
+    state.factionStrength[f.id] = Math.min(220, grown);
     const mine = landTiles().filter((t) => state.tileOwner[key(t.x, t.y)] === f.id);
     if (mine.length === 0) continue;
 
@@ -156,17 +180,25 @@ export function aiTurn(state: GameState): void {
 
     if (playerBorder.length > 0 && roll(state) < info.willing) {
       const tgt = playerBorder[Math.floor(roll(state) * playerBorder.length)];
-      const atk = factionAttackPower(state.tileOwner, f.id) * info.attackMult * pressure * (0.8 + roll(state) * 0.5);
-      if (atk > playerDefensePower(state)) {
-        state.tileOwner[key(tgt.x, tgt.y)] = f.id;
-        for (const id of Object.keys(state.troops)) state.troops[id] = Math.floor(state.troops[id] * 0.92);
-        state.log.unshift({ tick: state.tick, text: `${f.name} (${info.label}) seized your land at (${tgt.x},${tgt.y})! Defend your borders.`, kind: "bad" });
-        if (state.log.length > 60) state.log.length = 60;
-        continue;
-      } else {
-        state.log.unshift({ tick: state.tick, text: `You repelled a raid from ${f.name} at (${tgt.x},${tgt.y}).`, kind: "good" });
-        if (state.log.length > 60) state.log.length = 60;
-      }
+      // real two-way siege: rival army vs the player's actual home defence
+      const army = aiArmy(state.factionStrength[f.id] * info.attackMult * pressure, f.difficulty);
+      const outcome = resolveSiege(army, playerAsDefender(state), mods, state.rngState);
+      state.rngState = outcome.rngState;
+      // apply the player's real losses
+      for (const [id, c] of Object.entries(outcome.defenderLosses)) state.troops[id] = Math.max(0, (state.troops[id] ?? 0) - c);
+      const held = !outcome.victory;
+      if (!held) state.tileOwner[key(tgt.x, tgt.y)] = f.id;
+      const report: SiegeReport = {
+        id: `r${state.nextId++}`, kind: "defense", tick: state.tick, targetName: `${f.name} (${info.label})`,
+        victory: held, breached: outcome.breached,
+        attackerLosses: outcome.defenderLosses, defenderLosses: outcome.attackerLosses,
+        loot: {}, lines: [`${f.name} (${info.label}) assaults your border at (${tgt.x},${tgt.y}).`, ...outcome.lines],
+      };
+      state.reports.unshift(report);
+      if (state.reports.length > 30) state.reports.length = 30;
+      state.log.unshift({ tick: state.tick, text: held ? `You repelled ${f.name} at (${tgt.x},${tgt.y}).` : `${f.name} seized your land at (${tgt.x},${tgt.y})!`, kind: held ? "good" : "bad" });
+      if (state.log.length > 60) state.log.length = 60;
+      if (!held) continue;
     }
     // expand into neutral land (economic rivals grab more per turn)
     for (let e = 0; e < info.expand && neutralBorder.length > 0; e++) {
