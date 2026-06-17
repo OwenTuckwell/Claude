@@ -46,7 +46,7 @@ export interface ResearchEffect {
 export interface ResearchDef {
   id: string;
   name: string;
-  branch: "economy" | "military" | "construction" | "logistics" | "statecraft";
+  branch: "economy" | "military" | "construction" | "logistics" | "statecraft" | "castellany";
   maxRank: number;
   rpCostBase: number;
   rpCostGrowth: number;

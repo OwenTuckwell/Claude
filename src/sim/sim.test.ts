@@ -171,6 +171,30 @@ describe("territory, conquest & rank", () => {
   });
 });
 
+describe("save migration", () => {
+  it("preserves village progress and resets world-coupled fields", async () => {
+    const { migrate } = await import("../host/persistence");
+    const oldSave = {
+      schemaVersion: 1,
+      resources: { food: 999, wood: 500 }, // partial; missing newer resource ids
+      population: 42,
+      buildings: [{ id: "farm", level: 5 }, { id: "barracks", level: 3 }],
+      research: { mining: 2, militia: 1 },
+      troops: { swordsman: 30 },
+      tick: 1234,
+    };
+    const m = migrate(oldSave);
+    expect(m.population).toBe(42);
+    expect(m.buildings.find((b) => b.id === "barracks")?.level).toBe(3);
+    expect(m.research.mining).toBe(2);
+    expect(m.troops.swordsman).toBe(30);
+    expect(m.resources.food).toBe(999);
+    expect(m.resources.token).toBe(0);        // backfilled new resource
+    expect(m.tileOwner[key(world.player.tile.x, world.player.tile.y)]).toBe("player"); // world reset
+    expect(m.intel).toEqual({});
+  });
+});
+
 describe("siege", () => {
   const defender = {
     garrison: { spearman: 6, archer: 4 },

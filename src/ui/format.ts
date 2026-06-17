@@ -16,6 +16,7 @@ export const BUILDING_ICONS: Record<string, string> = {
   scholars_hall: "📚", university: "🎓", marketplace: "🏪",
   barracks: "🏯", archery_range: "🎯", blacksmith: "🔨", siege_workshop: "🪚",
   wall: "🧱", tower: "🗼", watchtower: "🏰",
+  keep: "🏯", gatehouse: "🚪", moat: "🌊", barbican: "🏰",
 };
 
 export function fmt(n: number): string {

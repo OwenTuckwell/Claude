@@ -3,10 +3,10 @@ import { rpCostFor } from "../../sim/effects";
 import type { TabProps } from "../helpers";
 import type { ResearchDef } from "../../sim/types";
 
-const BRANCH_ORDER: ResearchDef["branch"][] = ["economy", "construction", "military", "logistics", "statecraft"];
+const BRANCH_ORDER: ResearchDef["branch"][] = ["economy", "construction", "castellany", "military", "logistics", "statecraft"];
 const BRANCH_LABEL: Record<string, string> = {
-  economy: "🌾 Economy", construction: "🧱 Construction", military: "⚔️ Military",
-  logistics: "🧭 Logistics", statecraft: "👑 Statecraft",
+  economy: "🌾 Economy", construction: "🧱 Construction", castellany: "🏰 Castellany",
+  military: "⚔️ Military", logistics: "🧭 Logistics", statecraft: "👑 Statecraft",
 };
 
 // layout geometry

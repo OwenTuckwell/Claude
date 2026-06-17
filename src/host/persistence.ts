@@ -4,6 +4,7 @@
 import { balance } from "../sim/content";
 import { SCHEMA_VERSION, advance, createInitialState } from "../sim/sim";
 import type { GameState } from "../sim/types";
+import { RESOURCE_IDS } from "../sim/types";
 
 const KEY = "bannerfall.save.v1";
 const REALTIME_KEY = "bannerfall.lastWallClock";
@@ -15,6 +16,42 @@ export const TICKS_PER_REAL_SECOND = 0.15;
 
 export interface SaveEnvelope { state: GameState; wallClock: number; }
 
+/** Bring any older/partial save up to the current shape WITHOUT wiping progress.
+ *  Your village (buildings/research/troops/resources) is preserved; only world-coupled
+ *  fields (territory/intel/marches), which may reference a changed map, reset to fresh.
+ *  (docs/05 Appendix O — save & migration.) */
+export function migrate(old: unknown): GameState {
+  const base = createInitialState();
+  if (!old || typeof old !== "object") return base;
+  const o = old as Record<string, any>;
+  if (o.schemaVersion === SCHEMA_VERSION && o.tileOwner && o.intel) return o as GameState;
+
+  const resources = { ...base.resources };
+  if (o.resources && typeof o.resources === "object")
+    for (const r of RESOURCE_IDS) if (typeof o.resources[r] === "number") resources[r] = o.resources[r];
+
+  return {
+    ...base,
+    resources,
+    population: typeof o.population === "number" ? o.population : base.population,
+    rationLevel: o.rationLevel ?? base.rationLevel,
+    taxRate: typeof o.taxRate === "number" ? o.taxRate : base.taxRate,
+    buildings: Array.isArray(o.buildings) ? o.buildings : base.buildings,
+    buildQueue: Array.isArray(o.buildQueue) ? o.buildQueue : [],
+    research: o.research && typeof o.research === "object" ? o.research : {},
+    troops: o.troops && typeof o.troops === "object" ? o.troops : {},
+    trainQueue: Array.isArray(o.trainQueue) ? o.trainQueue : [],
+    reports: Array.isArray(o.reports) ? o.reports.slice(0, 30) : [],
+    log: Array.isArray(o.log) ? o.log.slice(0, 60) : base.log,
+    nextId: typeof o.nextId === "number" ? o.nextId : base.nextId,
+    tick: typeof o.tick === "number" ? o.tick : 0,
+    rngState: typeof o.rngState === "number" ? o.rngState : base.rngState,
+    // world-coupled fields reset to fresh (the map may have changed between versions)
+    tileOwner: base.tileOwner, intel: {}, marches: [], aiState: base.aiState, lastAiTurn: 0,
+    schemaVersion: SCHEMA_VERSION,
+  };
+}
+
 export function save(state: GameState): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
@@ -22,20 +59,19 @@ export function save(state: GameState): void {
   } catch { /* storage unavailable (private mode); ignore */ }
 }
 
-/** Load the save and credit offline progress (capped), or start a new game. */
+/** Load the save (migrating if needed) and credit offline progress (capped). */
 export function loadOrNew(): GameState {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return createInitialState();
-    const parsed = JSON.parse(raw) as GameState;
-    if (parsed.schemaVersion !== SCHEMA_VERSION) return createInitialState();
+    const state = migrate(JSON.parse(raw));
     const last = Number(localStorage.getItem(REALTIME_KEY) ?? Date.now());
     const elapsedSec = Math.max(0, (Date.now() - last) / 1000);
     const offlineTicks = Math.min(
       balance.maxCatchUpTicks,
       Math.floor(elapsedSec * TICKS_PER_REAL_SECOND),
     );
-    return offlineTicks > 0 ? advance(parsed, offlineTicks) : parsed;
+    return offlineTicks > 0 ? advance(state, offlineTicks) : state;
   } catch {
     return createInitialState();
   }
@@ -52,7 +88,7 @@ export function exportSave(state: GameState): string {
 export function importSave(json: string): GameState | null {
   try {
     const env = JSON.parse(json) as SaveEnvelope;
-    if (env.state?.schemaVersion === SCHEMA_VERSION) return env.state;
+    if (env.state) return migrate(env.state);
   } catch { /* ignore */ }
   return null;
 }
