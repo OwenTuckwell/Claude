@@ -109,6 +109,7 @@ export interface Balance {
     tileUpkeepGold: number;       // gold/tick per owned tile beyond the free allowance
     freeTiles: number;            // tiles before upkeep & sprawl penalties bite
     sprawlHappinessPer10: number; // happiness lost per 10 tiles beyond the allowance
+    protectedTiles: number;       // AI won't seize your land while you hold <= this (safe heartland)
   };
 }
 

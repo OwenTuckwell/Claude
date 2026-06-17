@@ -159,6 +159,10 @@ export function aiTurn(state: GameState): void {
 
   const pressure = 1 + Math.min(0.5, playerStrengthIndex(state) * 0.002);
   const mods = computeModifiers(state);
+  // Safe heartland: while the player holds only a small realm, rivals expand into the
+  // wilds and skirmish each other but won't strip your core (Appendix B — no wipeouts,
+  // fairness floor). Your frontier becomes contestable only once you've grown past it.
+  const playerProtected = ownedCount(state.tileOwner, "player") <= balance.conquest.protectedTiles;
   for (const f of factions) {
     if (f.isPlayer) continue;
     if (state.tileOwner[key(f.capital.x, f.capital.y)] !== f.id) continue; // defeated
@@ -178,7 +182,7 @@ export function aiTurn(state: GameState): void {
       else if (o === "neutral") neutralBorder.push(n);
     }
 
-    if (playerBorder.length > 0 && roll(state) < info.willing) {
+    if (!playerProtected && playerBorder.length > 0 && roll(state) < info.willing) {
       const tgt = playerBorder[Math.floor(roll(state) * playerBorder.length)];
       // real two-way siege: rival army vs the player's actual home defence
       const army = aiArmy(state.factionStrength[f.id] * info.attackMult * pressure, f.difficulty);

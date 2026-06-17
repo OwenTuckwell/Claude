@@ -20,7 +20,7 @@
   "starvationDeclinePerTick": 0.05,
   "crowdingPenaltyPerPctOver": 20,
   "skeletonStaffing": 0.15,
-  "baseStorage": { "food": 300, "wood": 250, "stone": 180, "iron": 90, "gold": 100000, "rp": 100000, "token": 100000 },
+  "baseStorage": { "food": 300, "wood": 250, "stone": 180, "iron": 90, "gold": 8000, "rp": 100000, "token": 100000 },
   "startingResources": { "food": 80, "wood": 70, "stone": 20, "iron": 5, "gold": 10, "rp": 0, "token": 0 },
   "startingPopulation": 14,
   "buildTimeReductionCap": 0.6,
@@ -46,6 +46,7 @@
     "defenderScalePerTile": 0.05,
     "tileUpkeepGold": 0.03,
     "freeTiles": 10,
-    "sprawlHappinessPer10": 1
+    "sprawlHappinessPer10": 1,
+    "protectedTiles": 8
   }
 }
