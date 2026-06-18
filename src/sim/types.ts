@@ -90,6 +90,7 @@ export interface Balance {
   productionScale: number;        // global multiplier on all building output (slow-game knob)
   researchPerLevel: number;       // RP awarded per building level gained (research = development)
   villageGrid: { cols: number; rows: number };
+  castleGrid: { cols: number; rows: number };
   market: {
     tokensPerTap: number;
     buyPriceTokens: Partial<Record<ResourceId, number>>;   // tokens to buy 1 unit

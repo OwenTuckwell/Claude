@@ -2,7 +2,7 @@
 // reads real time; the sim core stays clock-free (docs/03 §3). Versioned JSON save so
 // the same format loads in the future Unity build.
 import { balance } from "../sim/content";
-import { SCHEMA_VERSION, advance, createInitialState, placeVillageBuildings } from "../sim/sim";
+import { SCHEMA_VERSION, advance, createInitialState, placeVillageBuildings, placeCastleBuildings } from "../sim/sim";
 import type { GameState } from "../sim/types";
 import { RESOURCE_IDS } from "../sim/types";
 
@@ -37,7 +37,8 @@ export function migrate(old: unknown): GameState {
     const level = Math.max(1, Math.min(8, Math.ceil(buildings.length / 3)));
     buildings = [{ id: "town_hall", level }, ...buildings];
   }
-  placeVillageBuildings(buildings); // assign grid plots to any building missing one
+  placeVillageBuildings(buildings); // assign village plots to any building missing one
+  placeCastleBuildings(buildings);  // assign castle plots to fortifications
 
   return {
     ...base,

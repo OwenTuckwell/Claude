@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -90,14 +90,31 @@ export function firstFreeVillageCell(buildings: BuildingInstance[]): { gx: numbe
 }
 /** Assign grid cells to any village building missing one (init & save migration). */
 export function placeVillageBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
+  return placeZone(buildings, true, balance.villageGrid);
+}
+
+// ---- Castle layout grid (design your fortress) — fortifications reuse gx/gy here. ----
+export const castleGrid = () => balance.castleGrid;
+export function firstFreeCastleCell(buildings: BuildingInstance[]): { gx: number; gy: number } {
+  const { cols, rows } = balance.castleGrid;
+  const taken = new Set(buildings.filter((b) => !isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) return { gx: x, gy: y };
+  return { gx: 0, gy: 0 };
+}
+export function placeCastleBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
+  return placeZone(buildings, false, balance.castleGrid);
+}
+
+/** Shared placer: assign cells to buildings of one zone (village vs castle) that lack them. */
+function placeZone(buildings: BuildingInstance[], village: boolean, grid: { cols: number; rows: number }): BuildingInstance[] {
+  const inZone = (b: BuildingInstance) => isVillageBuilding(b.id) === village;
   const taken = new Set<string>();
-  for (const b of buildings) if (b.gx !== undefined && b.gy !== undefined) taken.add(`${b.gx},${b.gy}`);
-  const { cols, rows } = balance.villageGrid;
+  for (const b of buildings) if (inZone(b) && b.gx !== undefined && b.gy !== undefined) taken.add(`${b.gx},${b.gy}`);
   const free = (): { gx: number; gy: number } => {
-    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) { taken.add(`${x},${y}`); return { gx: x, gy: y }; }
+    for (let y = 0; y < grid.rows; y++) for (let x = 0; x < grid.cols; x++) if (!taken.has(`${x},${y}`)) { taken.add(`${x},${y}`); return { gx: x, gy: y }; }
     return { gx: 0, gy: 0 };
   };
-  for (const b of buildings) if (isVillageBuilding(b.id) && b.gx === undefined) { const c = free(); b.gx = c.gx; b.gy = c.gy; }
+  for (const b of buildings) if (inZone(b) && b.gx === undefined) { const c = free(); b.gx = c.gx; b.gy = c.gy; }
   return buildings;
 }
 
@@ -149,6 +166,7 @@ export function createInitialState(seed = 12345): GameState {
     { id: "chapel", level: 1 }, { id: "granary", level: 1 }, { id: "stockpile", level: 1 },
   ];
   placeVillageBuildings(starting);
+  placeCastleBuildings(starting);
   const aiState: GameState["aiState"] = {};
   for (const v of world.aiVillages) aiState[v.id] = { lootedUntilTick: 0 };
   return {
@@ -238,10 +256,8 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
   s.buildQueue = s.buildQueue.filter((o) => {
     if (o.startedTick !== null && s.tick - o.startedTick >= o.durationTicks) {
       if (o.instanceIndex === null) {
-        if (isVillageBuilding(o.building)) {
-          const cell = firstFreeVillageCell(s.buildings);
-          s.buildings.push({ id: o.building, level: 1, gx: cell.gx, gy: cell.gy });
-        } else s.buildings.push({ id: o.building, level: 1 });
+        const cell = isVillageBuilding(o.building) ? firstFreeVillageCell(s.buildings) : firstFreeCastleCell(s.buildings);
+        s.buildings.push({ id: o.building, level: 1, gx: cell.gx, gy: cell.gy });
       } else s.buildings[o.instanceIndex].level = o.targetLevel;
       // Research is earned by DEVELOPING: each building level gained grants RP,
       // amplified by civic buildings (scholars' hall, university).
@@ -583,10 +599,10 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
     case "moveBuilding": {
       const inst = s.buildings[cmd.index];
       if (!inst) return fail("No such building.");
-      if (!isVillageBuilding(inst.id)) return fail("That isn't a village building.");
-      const { cols, rows } = balance.villageGrid;
+      const village = isVillageBuilding(inst.id);
+      const { cols, rows } = village ? balance.villageGrid : balance.castleGrid;
       if (cmd.gx < 0 || cmd.gy < 0 || cmd.gx >= cols || cmd.gy >= rows) return fail("Off the grid.");
-      const occ = s.buildings.findIndex((b, i) => i !== cmd.index && isVillageBuilding(b.id) && b.gx === cmd.gx && b.gy === cmd.gy);
+      const occ = s.buildings.findIndex((b, i) => i !== cmd.index && isVillageBuilding(b.id) === village && b.gx === cmd.gx && b.gy === cmd.gy);
       if (occ >= 0) { s.buildings[occ].gx = inst.gx; s.buildings[occ].gy = inst.gy; } // swap plots
       inst.gx = cmd.gx; inst.gy = cmd.gy;
       return ok();

@@ -92,6 +92,15 @@ describe("commands", () => {
     expect(applyCommand(s2, { type: "build", building: "tavern", instanceIndex: null }).result.ok).toBe(true);
   });
 
+  it("moves a village building to an empty plot", () => {
+    const s = fresh();
+    const idx = s.buildings.findIndex((b) => b.id === "farm");
+    const r = applyCommand(s, { type: "moveBuilding", index: idx, gx: 5, gy: 5 });
+    expect(r.result.ok).toBe(true);
+    expect(r.state.buildings[idx].gx).toBe(5);
+    expect(r.state.buildings[idx].gy).toBe(5);
+  });
+
   it("rejects unaffordable actions", () => {
     const s: GameState = { ...fresh(), resources: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0 } };
     expect(applyCommand(s, { type: "build", building: "barracks", instanceIndex: null }).result.ok).toBe(false);
