@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { buildingById } from "../sim/content";
 
 // A scenic isometric board: a soft grass island ringed by beach & sea, with buildings
@@ -58,6 +59,22 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
       <polygon points={pts([E.b, E.r, ap])} fill={c.roof} {...OL} />
       {!c.round && <rect x={cx + ew * 0.35} y={ap[1] + 2} width={3.4} height={c.roofH * 0.55} fill="#5b4a39" stroke="#33271a" strokeWidth={0.5} />}
       {c.flag && <g><line x1={ap[0]} y1={ap[1]} x2={ap[0]} y2={ap[1] - 13} stroke="#33271a" strokeWidth={1.3} /><polygon points={pts([[ap[0], ap[1] - 13], [ap[0] + 10, ap[1] - 10], [ap[0], ap[1] - 7.5]])} fill="#b1442f" stroke="#7e3527" strokeWidth={0.4} /></g>}
+    </g>
+  );
+}
+
+/** Renders a real PNG sprite (public/sprites/<id>.png) if present, anchored on the tile;
+ *  otherwise the drawn vector building. Drop a transparent PNG to upgrade any building. */
+function IsoBuilding({ cx, cy, id, level }: { cx: number; cy: number; id: string; level: number }) {
+  const [loaded, setLoaded] = useState(false);
+  const w = TW * 1.7, h = TW * 1.7;
+  return (
+    <g>
+      <ellipse cx={cx} cy={cy + TH * 0.18} rx={TW * 0.34} ry={TH * 0.34} fill="rgba(20,28,12,0.22)" />
+      {!loaded && <Building cx={cx} cy={cy} id={id} level={level} />}
+      <image href={`sprites/${id}.png`} x={cx - w / 2} y={cy + TH * 0.35 - h} width={w} height={h}
+        preserveAspectRatio="xMidYMax meet" style={{ display: loaded ? "" : "none" }}
+        onLoad={() => setLoaded(true)} onError={() => { /* keep vector */ }} />
     </g>
   );
 }
@@ -136,7 +153,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo }: {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
         const p = occ.get(`${gx},${gy}`);
         if (p) return <g key={`b${gx}-${gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
-          <Building cx={cx} cy={cy} id={p.id} level={p.level} />
+          <IsoBuilding cx={cx} cy={cy} id={p.id} level={p.level} />
         </g>;
         if (treeAt(gx, gy)) return <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} />;
         if (bushAt(gx, gy)) return <Bush key={`s${gx}-${gy}`} cx={cx} cy={cy} />;
