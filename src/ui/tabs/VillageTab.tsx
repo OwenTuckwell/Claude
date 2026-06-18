@@ -4,7 +4,7 @@ import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuildin
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { BuildingSprite } from "../BuildingSprite";
+import { IsoBoard, type Placed } from "../IsoBoard";
 import type { BuildingDef } from "../../sim/types";
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
@@ -15,7 +15,6 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const { cols, rows } = villageGrid();
   const thLevel = townHallLevel(state);
 
-  const busyIndexes = new Set(state.buildQueue.map((o) => o.instanceIndex).filter((i): i is number => i !== null));
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
   const selIsVillage = !!selInst && isVillageBuilding(selInst.id);
@@ -53,32 +52,14 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
           <span className="tag">Town Hall L{thLevel}</span>
         </div>
         <div className="vgrid-wrap" style={{ position: "relative" }}>
-          <svg className="vgrid" width={cols * 40} height={rows * 40} viewBox={`0 0 ${cols} ${rows}`}
-            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}>
-            {Array.from({ length: cols * rows }, (_, i) => {
-              const x = i % cols, y = Math.floor(i / cols);
-              const occupied = placed.some(({ inst }) => inst.gx === x && inst.gy === y);
-              const isMoveTarget = selIsVillage && !occupied;
-              return <rect key={i} x={x} y={y} width={1} height={1}
-                fill={(x + y) % 2 ? "#7a8c4e" : "#728345"} stroke="rgba(46,38,32,0.18)" strokeWidth={0.03}
-                style={{ cursor: isMoveTarget ? "copy" : "default" }}
-                onClick={() => { if (isMoveTarget && sel !== null) dispatch({ type: "moveBuilding", index: sel, gx: x, gy: y }); }} />;
-            })}
-            {selInst && selIsVillage && selInst.gx !== undefined &&
-              <rect x={selInst.gx} y={selInst.gy} width={1} height={1} fill="none" stroke="#b07d1a" strokeWidth={0.12} />}
-          </svg>
-          {placed.map(({ inst, idx }) => (
-            <button key={idx} className={"vbuild" + (sel === idx ? " sel" : "") + (busyIndexes.has(idx) ? " busy" : "")}
-              style={{ left: `${((inst.gx! + 0.5) / cols) * 100}%`, top: `${((inst.gy! + 0.5) / rows) * 100}%` }}
-              title={buildingById[inst.id].name}
-              onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-              <span className="vb-ic"><BuildingSprite id={inst.id} /></span>
-              <span className="vb-lv">{inst.level}</span>
-            </button>
-          ))}
+          <IsoBoard cols={cols} rows={rows}
+            placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
+            selIdx={selIsVillage ? sel : null}
+            onSelect={(idx) => { setSel(idx === sel ? null : idx); setBuilding(false); }}
+            onMoveTo={(gx, gy) => { if (sel !== null) dispatch({ type: "moveBuilding", index: sel, gx, gy }); }} />
         </div>
         <div className="row" style={{ marginTop: 6 }}>
-          <span className="muted">{selIsVillage ? "Tap an empty plot to move it." : "Tap a building to inspect it."}</span>
+          <span className="muted">{selIsVillage ? "Tap an empty plot to relocate it." : "Tap a building to inspect it."}</span>
           <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
         </div>
       </div>
