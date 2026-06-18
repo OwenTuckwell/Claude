@@ -4,6 +4,7 @@ import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuildin
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
+import { BuildingSprite } from "../BuildingSprite";
 import type { BuildingDef } from "../../sim/types";
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
@@ -71,7 +72,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
               style={{ left: `${((inst.gx! + 0.5) / cols) * 100}%`, top: `${((inst.gy! + 0.5) / rows) * 100}%` }}
               title={buildingById[inst.id].name}
               onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-              <span className="vb-ic">{BUILDING_ICONS[inst.id] ?? "🏠"}</span>
+              <span className="vb-ic"><BuildingSprite id={inst.id} /></span>
               <span className="vb-lv">{inst.level}</span>
             </button>
           ))}

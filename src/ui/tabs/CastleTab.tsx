@@ -5,6 +5,7 @@ import { isBuildingUnlocked } from "../../sim/effects";
 import { playerDefensePower } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
+import { BuildingSprite } from "../BuildingSprite";
 
 // Phase 3 — the castle as a designable defence space (docs/05 §3, Appendix A).
 // Lay out walls/towers/keep on the castle grid; they set home defence, which repels AI
@@ -54,7 +55,7 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
               style={{ left: `${((b.gx! + 0.5) / cols) * 100}%`, top: `${((b.gy! + 0.5) / rows) * 100}%` }}
               title={buildingById[b.id].name}
               onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-              <span className="vb-ic">{BUILDING_ICONS[b.id] ?? "🧱"}</span>
+              <span className="vb-ic"><BuildingSprite id={b.id} /></span>
               <span className="vb-lv">{b.level}</span>
             </button>
           ))}
