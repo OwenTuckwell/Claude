@@ -67,7 +67,7 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
  *  otherwise the drawn vector building. Drop a transparent PNG to upgrade any building. */
 function IsoBuilding({ cx, cy, id, level }: { cx: number; cy: number; id: string; level: number }) {
   const [loaded, setLoaded] = useState(false);
-  const w = TW * 2.1, h = TW * 1.4;   // building art box (smaller — room to breathe)
+  const w = TW * 1.8, h = TW * 1.2;   // building art box (smaller — room to breathe)
   return (
     <g>
       <ellipse cx={cx} cy={cy + TH * 0.18} rx={TW * 0.34} ry={TH * 0.34} fill="rgba(20,28,12,0.22)" />
@@ -100,9 +100,11 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg }:
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
   const minSx = sx(0, rows - 1), maxSx = sx(cols - 1, 0), maxSy = sy(cols - 1, rows - 1);
-  const ox = PAD - minSx + TW / 2, oy = PAD + HEADROOM;
   const W = (maxSx - minSx) + TW + PAD * 2;
   const H = maxSy + TH + HEADROOM + PAD * 2;
+  // nudge the whole grid up-left so it sits on the meadow (which opens toward top-left)
+  const ox = PAD - minSx + TW / 2 - W * 0.06;
+  const oy = PAD + HEADROOM - H * 0.05;
 
   const occ = new Map(placed.map((p) => [`${p.gx},${p.gy}`, p]));
   const moving = selIdx !== null;
