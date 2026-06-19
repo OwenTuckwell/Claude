@@ -10,16 +10,16 @@ import type { BuildingDef } from "../../sim/types";
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
 
 export function VillageTab({ state, mods, dispatch }: TabProps) {
-  const [sel, setSel] = useState<number | null>(null);
-  const [building, setBuilding] = useState(false);
+  const [sel, setSel] = useState<number | null>(null);     // selected building index
+  const [moveMode, setMoveMode] = useState(false);
+  const [building, setBuilding] = useState(false);          // build menu open
   const { cols, rows } = villageGrid();
   const thLevel = townHallLevel(state);
 
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
-  const selIsVillage = !!selInst && isVillageBuilding(selInst.id);
+  const popupOpen = !!selInst && selDef && !moveMode;
 
-  // village buildings with a grid position
   const placed = state.buildings
     .map((inst, idx) => ({ inst, idx }))
     .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
@@ -52,67 +52,79 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
           <span className="tag">Town Hall L{thLevel}</span>
         </div>
         <div className="vgrid-wrap" style={{ position: "relative" }}>
-          <IsoBoard cols={cols} rows={rows}
+          <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png"
             placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
-            selIdx={selIsVillage ? sel : null}
-            onSelect={(idx) => { setSel(idx === sel ? null : idx); setBuilding(false); }}
-            onMoveTo={(gx, gy) => { if (sel !== null) dispatch({ type: "moveBuilding", index: sel, gx, gy }); }} />
+            selIdx={moveMode ? sel : null}
+            onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
+            onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
         </div>
         <div className="row" style={{ marginTop: 6 }}>
-          <span className="muted">{selIsVillage ? "Tap an empty plot to relocate it." : "Tap a building to inspect it."}</span>
-          <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
+          <span className="muted">{moveMode ? "Tap an empty plot to place it." : "Tap a building to manage it."}</span>
+          {moveMode
+            ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
+            : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>}
         </div>
       </div>
 
-      {selInst && selDef && (
-        <div className="card">
-          <div className="row">
-            <h3 style={{ margin: 0 }}>{BUILDING_ICONS[selInst.id]} {selDef.name} <span className="tag">L{selInst.level}</span></h3>
-            <button className="ghost" onClick={() => setSel(null)}>Close</button>
+      {/* building management pop-up */}
+      {popupOpen && selInst && selDef && (
+        <div className="modal" onClick={() => setSel(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="row">
+              <h3 style={{ margin: 0 }}>{BUILDING_ICONS[selInst.id]} {selDef.name} <span className="tag">L{selInst.level}</span></h3>
+              <button className="ghost" onClick={() => setSel(null)}>✕</button>
+            </div>
+            <div className="muted" style={{ margin: "6px 0" }}>{describe(selDef)}</div>
+            {(() => {
+              const maxed = selInst.level >= selDef.maxLevel;
+              const next = selInst.level + 1;
+              const cost = buildCost(selDef, next);
+              return (
+                <>
+                  {!maxed && <div className="cost" style={{ marginBottom: 8 }}>Upgrade → L{next}: {costString(cost)} · {fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)} · +{Math.round(balance.researchPerLevel * next)} 📜</div>}
+                  <div className="row">
+                    <button className="ghost" onClick={() => setMoveMode(true)}>↔ Move</button>
+                    <button className="act" disabled={maxed || !canAfford(state, cost)}
+                      onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
+                      {maxed ? "Max level" : "Upgrade"}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
-          <div className="muted">{describe(selDef)}</div>
-          {(() => {
-            const maxed = selInst.level >= selDef.maxLevel;
-            const next = selInst.level + 1;
-            const cost = buildCost(selDef, next);
-            return (
-              <div className="row" style={{ marginTop: 8 }}>
-                <div className="cost">{maxed ? "Fully upgraded." : `${costString(cost)} · ${fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)} · +${Math.round(balance.researchPerLevel * next)} 📜`}</div>
-                <button className="act" disabled={maxed || !canAfford(state, cost)}
-                  onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
-                  {maxed ? "Max" : `Upgrade → L${next}`}
-                </button>
-              </div>
-            );
-          })()}
         </div>
       )}
 
+      {/* build menu pop-up */}
       {building && (
-        <div className="card">
-          <div className="row"><h3 style={{ margin: 0 }}>Construct a new building</h3>
-            <button className="ghost" onClick={() => setBuilding(false)}>Close</button></div>
-          <div className="list" style={{ marginTop: 6 }}>
-            {CATEGORY_ORDER.flatMap((cat) =>
-              buildingDefs.filter((d) => d.category === cat && d.id !== "town_hall" && isBuildingUnlocked(d.id, mods)).map((def) => {
-                const cost = buildCost(def, 1);
-                const missingReq = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
-                const tier = def.tier ?? 1;
-                const tierLocked = thLevel < tier;
-                return (
-                  <div className="row" key={def.id}>
-                    <div>
-                      <strong>{BUILDING_ICONS[def.id] ?? "🏠"} {def.name}</strong> <span className="tag">{def.category}</span>
-                      <div className="cost">{costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
-                      {tierLocked && <div className="cost" style={{ color: "var(--bad)" }}>🔒 needs Town Hall L{tier}</div>}
-                      {missingReq && <div className="cost">needs {buildingById[missingReq]?.name}</div>}
+        <div className="modal" onClick={() => setBuilding(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="row"><h3 style={{ margin: 0 }}>Construct a building</h3>
+              <button className="ghost" onClick={() => setBuilding(false)}>✕</button></div>
+            <div className="list" style={{ marginTop: 6 }}>
+              {CATEGORY_ORDER.flatMap((cat) =>
+                buildingDefs.filter((d) => d.category === cat && d.id !== "town_hall" && isBuildingUnlocked(d.id, mods)).map((def) => {
+                  const cost = buildCost(def, 1);
+                  const missingReq = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
+                  const tier = def.tier ?? 1;
+                  const tierLocked = thLevel < tier;
+                  return (
+                    <div className="row" key={def.id}>
+                      <div>
+                        <strong>{BUILDING_ICONS[def.id] ?? "🏠"} {def.name}</strong> <span className="tag">{def.category}</span>
+                        <div className="cost">{costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
+                        {tierLocked && <div className="cost" style={{ color: "var(--bad)" }}>🔒 needs Town Hall L{tier}</div>}
+                        {missingReq && <div className="cost">needs {buildingById[missingReq]?.name}</div>}
+                      </div>
+                      <button className="act" disabled={tierLocked || !!missingReq || !canAfford(state, cost)}
+                        onClick={() => { dispatch({ type: "build", building: def.id, instanceIndex: null }); setBuilding(false); }}>Build</button>
                     </div>
-                    <button className="act" disabled={tierLocked || !!missingReq || !canAfford(state, cost)}
-                      onClick={() => dispatch({ type: "build", building: def.id, instanceIndex: null })}>Build</button>
-                  </div>
-                );
-              }),
-            )}
+                  );
+                }),
+              )}
+            </div>
           </div>
         </div>
       )}

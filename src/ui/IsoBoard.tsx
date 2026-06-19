@@ -92,9 +92,10 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg }: {
   cols: number; rows: number; placed: Placed[];
   selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
+  bg?: string;
 }) {
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
@@ -132,13 +133,17 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo }: {
         <linearGradient id="rWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8a663e" /><stop offset="1" stopColor="#553c22" /></linearGradient>
         <radialGradient id="grassG" cx="0.5" cy="0.4" r="0.8"><stop offset="0" stopColor="#86995a" /><stop offset="1" stopColor="#6b7e44" /></radialGradient>
       </defs>
-      <rect x={0} y={0} width={W} height={H} fill="url(#seaG)" />
-      <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
-      <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
-      {/* grass tiles — borderless 2-tone for soft texture (no harsh checkerboard) */}
+      {bg
+        ? <image href={bg} x={0} y={0} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
+        : <>
+            <rect x={0} y={0} width={W} height={H} fill="url(#seaG)" />
+            <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
+            <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
+          </>}
+      {/* tiles: transparent ground, highlighted only as move targets (invisible grid) */}
       {cells.map(({ gx, gy }) => {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
-        const grass = (gx + gy) % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
+        const grass = bg ? "transparent" : ((gx + gy) % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)");
         const fill = moving && !occ.has(`${gx},${gy}`) ? "rgba(231,192,97,0.35)" : grass;
         return <polygon key={`g${gx}-${gy}`}
           points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])}
@@ -155,8 +160,8 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo }: {
         if (p) return <g key={`b${gx}-${gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
           <IsoBuilding cx={cx} cy={cy} id={p.id} level={p.level} />
         </g>;
-        if (treeAt(gx, gy)) return <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} />;
-        if (bushAt(gx, gy)) return <Bush key={`s${gx}-${gy}`} cx={cx} cy={cy} />;
+        if (!bg && treeAt(gx, gy)) return <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} />;
+        if (!bg && bushAt(gx, gy)) return <Bush key={`s${gx}-${gy}`} cx={cx} cy={cy} />;
         return null;
       })}
     </svg>

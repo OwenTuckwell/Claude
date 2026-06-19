@@ -88,9 +88,21 @@ export function firstFreeVillageCell(buildings: BuildingInstance[]): { gx: numbe
   for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) return { gx: x, gy: y };
   return { gx: 0, gy: 0 };
 }
-/** Assign grid cells to any village building missing one (init & save migration). */
+/** Assign grid cells to village buildings that lack one, spaced out on a coarse lattice
+ *  so the big sprites get breathing room (init & save migration). */
 export function placeVillageBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
-  return placeZone(buildings, true, balance.villageGrid);
+  const { cols, rows } = balance.villageGrid;
+  const taken = new Set(buildings.filter((b) => isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
+  const spots: [number, number][] = [];
+  for (let y = 1; y < rows; y += 2) for (let x = 1; x < cols; x += 2) spots.push([x, y]);
+  let i = 0;
+  for (const b of buildings) {
+    if (!isVillageBuilding(b.id) || b.gx !== undefined) continue;
+    while (i < spots.length && taken.has(`${spots[i][0]},${spots[i][1]}`)) i++;
+    const s = spots[i] ?? [0, 0];
+    b.gx = s[0]; b.gy = s[1]; taken.add(`${b.gx},${b.gy}`); i++;
+  }
+  return buildings;
 }
 
 // ---- Castle layout grid (design your fortress) — fortifications reuse gx/gy here. ----
