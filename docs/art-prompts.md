@@ -48,13 +48,18 @@ mobile strategy game sprite, crisp, high detail
 - **barbican** — `a fortified stone barbican gate flanked by twin towers`
 
 ## Scenery & extras (optional, fill the empty space)
-Same earthy style; these decorate the island.
 - **bird** (`public/sprites/bird.png`) — `a single small bird in flight, wings spread, side profile, simple clean stylised shape, soft shading, fully transparent background, PNG with alpha, tiny sprite` — *(flies across the scene periodically)*
 - **tree_oak** — `a single leafy oak tree, NO ground, transparent background, PNG with alpha`
 - **tree_pine** — `a single pine/fir tree, NO ground, transparent background, PNG with alpha`
 - **rocks** — `a small cluster of grey boulders, NO ground, transparent background, PNG with alpha`
 - **stream** — `a gently curving section of a shallow stream/river with grassy banks, isometric 2:1 dimetric, top-down-ish, transparent background, PNG with alpha` — *(for the scenic layout phase)*
 - **well** — `a round stone village well with a small wooden roof, isometric, NO ground, transparent background, PNG with alpha`
+
+## Background scenes (painted ground; invisible grid placed on top)
+Keep the CENTRE a flat open meadow so buildings line up on the grid; put scenery at the
+EDGES (else a building lands on a painted tree). Square or 3:2; a background needs no alpha.
+- **bg_village** — `a top-down isometric medieval island, 2:1 dimetric perspective, a large flat open grassy meadow in the centre, a gently winding shallow stream along one edge, clusters of leafy trees, bushes, rocks and wildflowers around the borders, dirt footpaths, surrounded by calm blue sea with sandy beaches, earthy muted palette (mossy green, timber brown, stone grey), warm top-left sunlight, soft shadows, stylised-but-realistic, high detail, mobile strategy game background, NO buildings, NO text`
+- **bg_castle** — `a top-down isometric castle bailey courtyard, 2:1 dimetric perspective, a large flat open ground of packed earth and cobblestone in the centre, patches of grass, rubble and barrels at the edges, surrounded by a grassy bank, earthy palette, warm top-left sunlight, soft shadows, stylised-but-realistic, high detail, mobile strategy game background, NO buildings, NO text`
 
 ## Example (fully assembled — hovel)
 ```
