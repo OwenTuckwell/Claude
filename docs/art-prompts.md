@@ -21,7 +21,7 @@ mobile strategy game sprite, crisp, high detail
 
 ## Per-building prompts (subject + the suffix above)
 - **hovel** — `a small timber-framed cottage with a thatched roof and a stone chimney`
-- **farm** — `a wooden farm barn with hay bales and a small fenced animal pen`
+- **farm** — `a small fruit orchard: neat rows of apple trees with a little timber fruit-store hut`
 - **woodcutters_lodge** — `a log cabin with a stack of cut logs and an axe in a tree stump`
 - **quarry** — `a stone quarry workshop with cut stone blocks and a wooden cart`
 - **iron_mine** — `a mine entrance set into a rocky outcrop with timber supports and a minecart`
@@ -46,6 +46,15 @@ mobile strategy game sprite, crisp, high detail
 - **keep** — `a large square stone castle keep with battlements and banners`
 - **gatehouse** — `a stone castle gatehouse with a raised wooden portcullis`
 - **barbican** — `a fortified stone barbican gate flanked by twin towers`
+
+## Scenery & extras (optional, fill the empty space)
+Same earthy style; these decorate the island.
+- **bird** (`public/sprites/bird.png`) — `a single small bird in flight, wings spread, side profile, simple clean stylised shape, soft shading, fully transparent background, PNG with alpha, tiny sprite` — *(flies across the scene periodically)*
+- **tree_oak** — `a single leafy oak tree, NO ground, transparent background, PNG with alpha`
+- **tree_pine** — `a single pine/fir tree, NO ground, transparent background, PNG with alpha`
+- **rocks** — `a small cluster of grey boulders, NO ground, transparent background, PNG with alpha`
+- **stream** — `a gently curving section of a shallow stream/river with grassy banks, isometric 2:1 dimetric, top-down-ish, transparent background, PNG with alpha` — *(for the scenic layout phase)*
+- **well** — `a round stone village well with a small wooden roof, isometric, NO ground, transparent background, PNG with alpha`
 
 ## Example (fully assembled — hovel)
 ```
