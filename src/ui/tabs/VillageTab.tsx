@@ -5,6 +5,7 @@ import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
 import { IsoBoard, type Placed } from "../IsoBoard";
+import { PanZoom } from "../PanZoom";
 import type { BuildingDef } from "../../sim/types";
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
@@ -52,16 +53,18 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
           <span className="tag">Town Hall L{thLevel}</span>
         </div>
         <div className="vgrid-wrap" style={{ position: "relative" }}>
-          <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png"
-            placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
-            selIdx={moveMode ? sel : null}
-            canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
-            onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
-            onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          <PanZoom height={400} initialScale={1.4}>
+            <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png"
+              placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
+              selIdx={moveMode ? sel : null}
+              canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
+              onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
+              onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          </PanZoom>
           <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
         </div>
         <div className="row" style={{ marginTop: 6 }}>
-          <span className="muted">{moveMode ? "Tap an empty plot to place it." : "Tap a building to manage it."}</span>
+          <span className="muted">{moveMode ? "Tap an empty plot to place it." : "Pinch to zoom · drag to pan · tap a building to manage."}</span>
           {moveMode
             ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
             : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>}

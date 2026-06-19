@@ -104,7 +104,7 @@ describe("commands", () => {
   it("restricts quarry to the south-middle of the village grid", () => {
     expect(placementAllowed("farm", 0, 0)).toBe(true);       // others go anywhere
     expect(placementAllowed("quarry", 0, 0)).toBe(false);    // north-west: no
-    expect(placementAllowed("quarry", 9, 9)).toBe(true);     // south-centre: yes
+    expect(placementAllowed("quarry", 13, 13)).toBe(true);   // south-centre: yes
   });
 
   it("rejects unaffordable actions", () => {
