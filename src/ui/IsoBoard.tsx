@@ -67,7 +67,7 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
  *  otherwise the drawn vector building. Drop a transparent PNG to upgrade any building. */
 function IsoBuilding({ cx, cy, id, level }: { cx: number; cy: number; id: string; level: number }) {
   const [loaded, setLoaded] = useState(false);
-  const w = TW * 2.8, h = TW * 1.8;   // wide box to suit 2:1 building art
+  const w = TW * 2.1, h = TW * 1.4;   // building art box (smaller — room to breathe)
   return (
     <g>
       <ellipse cx={cx} cy={cy + TH * 0.18} rx={TW * 0.34} ry={TH * 0.34} fill="rgba(20,28,12,0.22)" />
