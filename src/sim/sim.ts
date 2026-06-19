@@ -82,10 +82,21 @@ export const villageGrid = () => balance.villageGrid;
 export function isVillageBuilding(id: string): boolean {
   return buildingById[id].category !== "fortification";
 }
-export function firstFreeVillageCell(buildings: BuildingInstance[]): { gx: number; gy: number } {
+/** Per-building placement rules. Quarry may only sit in the southmost 1/5 (screen-bottom)
+ *  and middle 1/3 (screen-centre) of the village grid; everything else goes anywhere. */
+export function placementAllowed(id: string, gx: number, gy: number): boolean {
+  if (id !== "quarry") return true;
   const { cols, rows } = balance.villageGrid;
-  const taken = new Set(buildings.filter((b) => b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) return { gx: x, gy: y };
+  const maxSum = (cols - 1) + (rows - 1);
+  const sum = gx + gy;            // screen Y (south = larger)
+  const diff = gx - gy;           // screen X (centre = ~0)
+  return sum >= maxSum * 0.8 && Math.abs(diff) <= maxSum / 6;
+}
+export function firstFreeVillageCell(buildings: BuildingInstance[], id = ""): { gx: number; gy: number } {
+  const { cols, rows } = balance.villageGrid;
+  const taken = new Set(buildings.filter((b) => isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
+    if (!taken.has(`${x},${y}`) && placementAllowed(id, x, y)) return { gx: x, gy: y };
   return { gx: 0, gy: 0 };
 }
 /** Assign grid cells to village buildings that lack one, spaced out on a coarse lattice
@@ -95,12 +106,11 @@ export function placeVillageBuildings(buildings: BuildingInstance[]): BuildingIn
   const taken = new Set(buildings.filter((b) => isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
   const spots: [number, number][] = [];
   for (let y = 1; y < rows; y += 2) for (let x = 1; x < cols; x += 2) spots.push([x, y]);
-  let i = 0;
   for (const b of buildings) {
     if (!isVillageBuilding(b.id) || b.gx !== undefined) continue;
-    while (i < spots.length && taken.has(`${spots[i][0]},${spots[i][1]}`)) i++;
-    const s = spots[i] ?? [0, 0];
-    b.gx = s[0]; b.gy = s[1]; taken.add(`${b.gx},${b.gy}`); i++;
+    const s = spots.find((sp) => !taken.has(`${sp[0]},${sp[1]}`) && placementAllowed(b.id, sp[0], sp[1]))
+      ?? [firstFreeVillageCell(buildings, b.id).gx, firstFreeVillageCell(buildings, b.id).gy];
+    b.gx = s[0]; b.gy = s[1]; taken.add(`${b.gx},${b.gy}`);
   }
   return buildings;
 }
@@ -268,7 +278,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
   s.buildQueue = s.buildQueue.filter((o) => {
     if (o.startedTick !== null && s.tick - o.startedTick >= o.durationTicks) {
       if (o.instanceIndex === null) {
-        const cell = isVillageBuilding(o.building) ? firstFreeVillageCell(s.buildings) : firstFreeCastleCell(s.buildings);
+        const cell = isVillageBuilding(o.building) ? firstFreeVillageCell(s.buildings, o.building) : firstFreeCastleCell(s.buildings);
         s.buildings.push({ id: o.building, level: 1, gx: cell.gx, gy: cell.gy });
       } else s.buildings[o.instanceIndex].level = o.targetLevel;
       // Research is earned by DEVELOPING: each building level gained grants RP,
@@ -614,6 +624,7 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       const village = isVillageBuilding(inst.id);
       const { cols, rows } = village ? balance.villageGrid : balance.castleGrid;
       if (cmd.gx < 0 || cmd.gy < 0 || cmd.gx >= cols || cmd.gy >= rows) return fail("Off the grid.");
+      if (village && !placementAllowed(inst.id, cmd.gx, cmd.gy)) return fail("That building can't go there.");
       const occ = s.buildings.findIndex((b, i) => i !== cmd.index && isVillageBuilding(b.id) === village && b.gx === cmd.gx && b.gy === cmd.gy);
       if (occ >= 0) { s.buildings[occ].gx = inst.gx; s.buildings[occ].gy = inst.gy; } // swap plots
       inst.gx = cmd.gx; inst.gy = cmd.gy;

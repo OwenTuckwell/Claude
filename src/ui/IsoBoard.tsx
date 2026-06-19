@@ -10,6 +10,11 @@ const PAD = 16, HEADROOM = 64;
 
 export interface Placed { idx: number; id: string; level: number; gx: number; gy: number; }
 
+// per-building sprite scale tweaks (multiplier on the base box)
+const SCALE: Record<string, number> = {
+  hovel: 0.5, farm: 1.15, granary: 0.75, stockpile: 0.75, woodcutters_lodge: 0.75, town_hall: 1.5,
+};
+
 interface Cfg { wall: string; wallDark: string; roof: string; roofDark: string; h: number; roofH: number; flag?: boolean; round?: boolean; }
 function cfgFor(id: string): Cfg {
   const cat = buildingById[id]?.category;
@@ -67,7 +72,8 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
  *  otherwise the drawn vector building. Drop a transparent PNG to upgrade any building. */
 function IsoBuilding({ cx, cy, id, level }: { cx: number; cy: number; id: string; level: number }) {
   const [loaded, setLoaded] = useState(false);
-  const w = TW * 1.8, h = TW * 1.2;   // building art box (smaller — room to breathe)
+  const sc = SCALE[id] ?? 1;
+  const w = TW * 1.8 * sc, h = TW * 1.2 * sc;   // building art box (per-building scale)
   return (
     <g>
       <ellipse cx={cx} cy={cy + TH * 0.18} rx={TW * 0.34} ry={TH * 0.34} fill="rgba(20,28,12,0.22)" />
@@ -92,10 +98,10 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace }: {
   cols: number; rows: number; placed: Placed[];
   selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
-  bg?: string;
+  bg?: string; canPlace?: (gx: number, gy: number) => boolean;
 }) {
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
@@ -145,12 +151,13 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg }:
       {/* tiles: transparent ground, highlighted only as move targets (invisible grid) */}
       {cells.map(({ gx, gy }) => {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
+        const placeable = !occ.has(`${gx},${gy}`) && (!canPlace || canPlace(gx, gy));
         const grass = bg ? "transparent" : ((gx + gy) % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)");
-        const fill = moving && !occ.has(`${gx},${gy}`) ? "rgba(231,192,97,0.35)" : grass;
+        const fill = moving && placeable ? "rgba(231,192,97,0.4)" : grass;
         return <polygon key={`g${gx}-${gy}`}
           points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])}
-          fill={fill} style={{ cursor: moving ? "copy" : "default" }}
-          onClick={() => { if (moving) onMoveTo(gx, gy); }} />;
+          fill={fill} style={{ cursor: moving && placeable ? "copy" : "default" }}
+          onClick={() => { if (moving && placeable) onMoveTo(gx, gy); }} />;
       })}
       {selIdx !== null && (() => { const p = placed.find((x) => x.idx === selIdx); if (!p) return null;
         const cx = sx(p.gx, p.gy) + ox, cy = sy(p.gx, p.gy) + oy;

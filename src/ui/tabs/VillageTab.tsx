@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding } from "../../sim/sim";
+import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding, placementAllowed } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
@@ -55,6 +55,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
           <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png"
             placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
             selIdx={moveMode ? sel : null}
+            canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
             onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
             onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
           <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />

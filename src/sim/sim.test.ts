@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel,
+  advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel, placementAllowed,
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
@@ -99,6 +99,12 @@ describe("commands", () => {
     expect(r.result.ok).toBe(true);
     expect(r.state.buildings[idx].gx).toBe(5);
     expect(r.state.buildings[idx].gy).toBe(5);
+  });
+
+  it("restricts quarry to the south-middle of the village grid", () => {
+    expect(placementAllowed("farm", 0, 0)).toBe(true);       // others go anywhere
+    expect(placementAllowed("quarry", 0, 0)).toBe(false);    // north-west: no
+    expect(placementAllowed("quarry", 9, 9)).toBe(true);     // south-centre: yes
   });
 
   it("rejects unaffordable actions", () => {
