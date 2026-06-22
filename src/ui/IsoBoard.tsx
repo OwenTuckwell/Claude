@@ -8,6 +8,10 @@ import { footprint } from "../sim/sim";
 
 const TW = 62, TH = 31;            // tile width/height (2:1 dimetric)
 const PAD = 16, HEADROOM = 64;
+// The playfield (grid + buildings) is scaled & centred onto the painted platform in the
+// background art. Tune these to sit the buildable diamond on the meadow: SCALE shrinks the
+// field to fit the platform; CX/CY are the platform centre as a fraction of the art.
+const FIELD_SCALE = 0.82, FIELD_CX = 0.5, FIELD_CY = 0.46;
 
 export interface Placed { idx: number; id: string; level: number; gx: number; gy: number; }
 
@@ -111,9 +115,15 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   const minSx = sx(0, rows - 1), maxSx = sx(cols - 1, 0), maxSy = sy(cols - 1, rows - 1);
   const W = (maxSx - minSx) + TW + PAD * 2;
   const H = maxSy + TH + HEADROOM + PAD * 2;
-  // nudge the whole grid up-left so it sits on the meadow (which opens toward top-left)
-  const ox = PAD - minSx + TW / 2 - W * 0.06;
-  const oy = PAD + HEADROOM - H * 0.05;
+  // base layout origin (grid centred in its own box); platform alignment is done by the
+  // FIELD transform below so we can scale + position the whole playfield over the art.
+  const ox = PAD - minSx + TW / 2;
+  const oy = PAD + HEADROOM;
+  // centre of the grid diamond, and the translate that lands it on the painted platform
+  const fcx = ox, fcy = oy + sy(cols - 1, rows - 1) / 2;
+  const ftx = W * FIELD_CX - FIELD_SCALE * fcx;
+  const fty = H * FIELD_CY - FIELD_SCALE * fcy;
+  const fieldT = `translate(${ftx.toFixed(1)} ${fty.toFixed(1)}) scale(${FIELD_SCALE})`;
 
   const fp = (id: string) => footprint(id);
   // every cell each building covers → its Placed; used for occupancy & occlusion
@@ -187,11 +197,13 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
       </defs>
       {bg
         ? <image href={bg} x={0} y={0} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
-        : <>
-            <rect x={0} y={0} width={W} height={H} fill="url(#seaG)" />
-            <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
-            <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
-          </>}
+        : <rect x={0} y={0} width={W} height={H} fill="url(#seaG)" />}
+      {/* the playfield (ground + grid + buildings) scaled & centred onto the platform art */}
+      <g transform={fieldT}>
+      {!bg && <>
+        <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
+        <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
+      </>}
       {/* tiles: transparent ground; while moving, every valid drop ORIGIN lights up */}
       {cells.map(({ gx, gy }) => {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
@@ -213,6 +225,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
         return <polygon points={pts([N, E, S, Wc])} fill="none" stroke="#f1d985" strokeWidth={2.5} />;
       })()}
       {items.map((it) => it.el)}
+      </g>
     </svg>
   );
 }
