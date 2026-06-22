@@ -29,6 +29,7 @@ function shortEffect(def: ResearchDef): string {
   switch (e.type) {
     case "production_pct": return `+${pct}%/rk ${e.target}`;
     case "storage_cap_pct": return `+${pct}%/rk ${e.target} storage`;
+    case "idle_income_pct": return `+${pct}%/rk idle income`;
     case "tax_yield_pct": return `+${pct}%/rk tax`;
     case "build_time_pct": return `${pct}%/rk build time`;
     case "happiness_flat": return `+${e.valuePerRank}/rk happiness`;

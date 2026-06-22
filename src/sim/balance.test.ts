@@ -3,7 +3,7 @@
 // eyeball pacing. Pure sim — no UI, no network. Run with `npm test`.
 import { describe, expect, it } from "vitest";
 import { advance, applyCommand, createInitialState, buildCost, netProduction, happiness } from "./sim";
-import { computeModifiers, isBuildingUnlocked } from "./effects";
+import { computeModifiers, isBuildingUnlocked, rpCostFor } from "./effects";
 import { realmInfo, ownedCount, key } from "./territory";
 import { buildings as buildingDefs } from "./content";
 import { world } from "./content";
@@ -41,13 +41,21 @@ describe("balance harness — long-run invariants", () => {
 
   it("an auto-economy player grows steadily over two weeks", () => {
     let s = createInitialState(202);
-    s = applyCommand(s, { type: "setTax", rate: 0.2 }).state;
+    s = applyCommand(s, { type: "setTax", rate: 0 }).state; // keep the populace happy enough to grow
     const startPop = s.population;
     const startBuildings = s.buildings.length;
 
-    // crude policy: each game-day, queue the cheapest affordable unlocked economy/housing
-    // building, and upgrade the Town Hall when we can afford it.
+    // Active policy matching the new slow start: each game-day work the tap-market for
+    // tokens, buy raw materials, research Idle Income, and queue the cheapest affordable
+    // building (preferring food when the larder is tight). Upgrade the Town Hall when able.
     for (let d = 0; d < 14; d++) {
+      for (let t = 0; t < 120; t++) s = applyCommand(s, { type: "tap" }).state;
+      s = applyCommand(s, { type: "buy", resource: "wood", amount: 30 }).state;
+      s = applyCommand(s, { type: "buy", resource: "stone", amount: 8 }).state;
+      const stewRank = s.research["stewardship"] ?? 0;
+      if (stewRank < 8 && s.resources.rp >= rpCostFor("stewardship", stewRank))
+        s = applyCommand(s, { type: "research", research: "stewardship" }).state;
+
       const mods = computeModifiers(s);
       const th = s.buildings.find((b) => b.id === "town_hall");
       if (th) {
@@ -55,10 +63,11 @@ describe("balance harness — long-run invariants", () => {
         if (RESOURCE_IDS.every((r) => (upCost[r] ?? 0) <= s.resources[r]))
           s = applyCommand(s, { type: "build", building: "town_hall", instanceIndex: s.buildings.indexOf(th) }).state;
       }
-      const candidates = buildingDefs.filter((def) =>
+      let candidates = buildingDefs.filter((def) =>
         ["production", "housing", "storage", "civic"].includes(def.category) &&
         isBuildingUnlocked(def.id, mods) &&
         (def.requires?.buildings ?? []).every((b) => s.buildings.some((x) => x.id === b)));
+      if (netProduction(s, mods).food < 2) candidates = candidates.filter((d) => d.id === "farm" || d.id === "windmill");
       let best: { id: string; cost: number } | null = null;
       for (const def of candidates) {
         const c = buildCost(def, 1);

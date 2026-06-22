@@ -1,6 +1,7 @@
 {
   "$comment": "Research tree for Bannerfall. Effects use the shared typed-modifier vocabulary (also used by the [Later] card/boost system). Numbers are illustrative; tuned in balance passes. Designed to keep growing — adding a tech is one entry here.",
   "research": [
+    { "id": "stewardship", "name": "Stewardship", "branch": "economy", "maxRank": 8, "rpCostBase": 30, "rpCostGrowth": 1.5, "requires": {}, "effects": [{ "type": "idle_income_pct", "target": "global", "valuePerRank": 0.05 }] },
     { "id": "better_ploughs", "name": "Better Ploughs", "branch": "economy", "maxRank": 6, "rpCostBase": 40, "rpCostGrowth": 1.7, "requires": {}, "effects": [{ "type": "production_pct", "target": "farm", "valuePerRank": 0.08 }] },
     { "id": "husbandry", "name": "Husbandry", "branch": "economy", "maxRank": 5, "rpCostBase": 80, "rpCostGrowth": 1.75, "requires": { "research": [{ "id": "better_ploughs", "rank": 2 }] }, "effects": [{ "type": "unlock_building", "target": "windmill", "atRank": 1 }, { "type": "production_pct", "target": "windmill", "valuePerRank": 0.08 }] },
     { "id": "irrigation", "name": "Irrigation", "branch": "economy", "maxRank": 5, "rpCostBase": 150, "rpCostGrowth": 1.8, "requires": { "research": [{ "id": "husbandry", "rank": 2 }] }, "effects": [{ "type": "production_pct", "target": "farm", "valuePerRank": 0.1 }] },

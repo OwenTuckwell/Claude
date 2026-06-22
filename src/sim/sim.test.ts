@@ -35,12 +35,31 @@ describe("determinism", () => {
 });
 
 describe("economy", () => {
-  it("the starting village has a positive food balance and grows", () => {
+  it("idle income scales passive production, and a developed village grows", () => {
+    const base = fresh();
+    const dev: GameState = {
+      ...base,
+      buildings: [
+        { id: "town_hall", level: 1, gx: 0, gy: 0 },
+        { id: "farm", level: 3, gx: 2, gy: 0 },
+        { id: "farm", level: 3, gx: 4, gy: 0 },
+        { id: "hovel", level: 2, gx: 6, gy: 0 },
+      ],
+      resources: { ...base.resources, food: 200 },
+      research: { stewardship: 8 },            // idle income at the 50% cap
+    };
+    const hi = netProduction(dev, computeModifiers(dev)).food;
+    const noStew: GameState = { ...dev, research: {} };          // idle income at the 10% base
+    const lo = netProduction(noStew, computeModifiers(noStew)).food;
+    expect(hi).toBeGreaterThan(lo);                              // more idle income → more output
+    const later = advance(dev, 200);
+    expect(later.population).toBeGreaterThan(dev.population);
+  });
+
+  it("a fresh realm starts with only a Town Hall (slow, market-driven start)", () => {
     const s = fresh();
-    const mods = computeModifiers(s);
-    expect(netProduction(s, mods).food).toBeGreaterThan(0);
-    const later = advance(s, 200);
-    expect(later.population).toBeGreaterThan(s.population);
+    expect(s.buildings).toHaveLength(1);
+    expect(s.buildings[0].id).toBe("town_hall");
   });
 
   it("resources respect storage caps", () => {
@@ -95,11 +114,12 @@ describe("commands", () => {
 
   it("moves a village building to an empty plot", () => {
     const s = fresh();
-    const idx = s.buildings.findIndex((b) => b.id === "farm");
-    const r = applyCommand(s, { type: "moveBuilding", index: idx, gx: 5, gy: 5 });
+    const idx = s.buildings.findIndex((b) => b.id === "town_hall");
+    const free = firstFreeVillageCell(s.buildings, "town_hall");
+    const r = applyCommand(s, { type: "moveBuilding", index: idx, gx: free.gx, gy: free.gy });
     expect(r.result.ok).toBe(true);
-    expect(r.state.buildings[idx].gx).toBe(5);
-    expect(r.state.buildings[idx].gy).toBe(5);
+    expect(r.state.buildings[idx].gx).toBe(free.gx);
+    expect(r.state.buildings[idx].gy).toBe(free.gy);
   });
 
   it("restricts quarry to the south-middle of the village grid", () => {
@@ -128,12 +148,12 @@ describe("commands", () => {
 
   it("won't move a building where its footprint would overlap or leave the grid", () => {
     const s = fresh();
+    s.buildings.push({ id: "farm", level: 1, gx: 0, gy: 12 }); // a second building to collide with
     const thIdx = s.buildings.findIndex((b) => b.id === "town_hall"); // 3×3
-    // bottom-right corner: a 3×3 origin at (13,13) on a 14×14 grid spills off the edge
+    // bottom-right corner: a 3×3 origin at (13,13) on a 14-wide grid spills off the edge
     expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: 13, gy: 13 }).result.ok).toBe(false);
     // onto another building's tiles → blocked
-    const other = s.buildings.find((b) => b.id !== "town_hall" && b.gx !== undefined)!;
-    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: other.gx!, gy: other.gy! }).result.ok).toBe(false);
+    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: 0, gy: 12 }).result.ok).toBe(false);
     // a genuinely free 3×3 spot → allowed
     const free = firstFreeVillageCell(s.buildings, "town_hall");
     expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: free.gx, gy: free.gy }).result.ok).toBe(true);

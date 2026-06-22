@@ -4,9 +4,15 @@
 import { research as researchDefs, researchById } from "./content";
 import type { GameState } from "./types";
 
+// Idle (passive) income is gated by the Stewardship research: you collect this fraction of
+// your buildings' nominal output. Starts low so the early game leans on the tap-market.
+export const IDLE_INCOME_BASE = 0.10;
+export const IDLE_INCOME_MAX = 0.50;
+
 export interface Modifiers {
   productionPct: Record<string, number>;   // buildingId -> additive fraction
   storageCapPct: Record<string, number>;   // resourceId -> additive fraction
+  idleIncomePct: number;                    // fraction of passive building output collected
   taxYieldPct: number;
   buildTimePct: number;                     // negative = faster
   happinessFlat: number;
@@ -25,7 +31,7 @@ function emptyTroopStat() {
 /** A zeroed Modifiers — used for sides with no research bonuses (e.g. the AI in a siege). */
 export function emptyModifiers(): Modifiers {
   return {
-    productionPct: {}, storageCapPct: {}, taxYieldPct: 0, buildTimePct: 0,
+    productionPct: {}, storageCapPct: {}, idleIncomePct: IDLE_INCOME_BASE, taxYieldPct: 0, buildTimePct: 0,
     happinessFlat: 0, defenseHealthPct: 0, marchSpeedPct: 0, scoutYieldPct: 0, troopStatPct: {},
     unlockedBuildings: new Set(), unlockedTroops: new Set(),
   };
@@ -44,6 +50,7 @@ export function computeModifiers(state: GameState): Modifiers {
           m.productionPct[e.target] = (m.productionPct[e.target] ?? 0) + perRank; break;
         case "storage_cap_pct":
           m.storageCapPct[e.target] = (m.storageCapPct[e.target] ?? 0) + perRank; break;
+        case "idle_income_pct": m.idleIncomePct += perRank; break;
         case "tax_yield_pct": m.taxYieldPct += perRank; break;
         case "build_time_pct": m.buildTimePct += perRank; break;
         case "happiness_flat": m.happinessFlat += perRank; break;
@@ -64,6 +71,7 @@ export function computeModifiers(state: GameState): Modifiers {
       }
     }
   }
+  m.idleIncomePct = Math.min(IDLE_INCOME_MAX, m.idleIncomePct);
   return m;
 }
 

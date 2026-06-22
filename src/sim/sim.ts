@@ -195,7 +195,8 @@ export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId,
   for (const b of s.buildings) {
     const def = buildingById[b.id];
     if (def.produces) for (const r of RESOURCE_IDS) if (def.produces[r]) {
-      net[r] += def.produces[r]! * b.level * st * (1 + (mods.productionPct[def.id] ?? 0)) * balance.productionScale;
+      // passive output is gated by Idle Income research (mods.idleIncomePct, 10%→50%)
+      net[r] += def.produces[r]! * b.level * st * (1 + (mods.productionPct[def.id] ?? 0)) * mods.idleIncomePct;
     }
     if (def.consumes) for (const r of RESOURCE_IDS) if (def.consumes[r]) net[r] -= def.consumes[r]! * b.level;
   }
@@ -211,12 +212,10 @@ export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId,
 // ---------- initial state ----------
 
 export function createInitialState(seed = 12345): GameState {
+  // A bare founding: just the Town Hall. The early economy is driven by the tap-market
+  // (tokens → buy materials → build), and passive income is unlocked via Idle Income research.
   const starting: { id: string; level: number }[] = [
     { id: "town_hall", level: 1 },
-    { id: "hovel", level: 1 }, { id: "hovel", level: 1 },
-    { id: "farm", level: 1 }, { id: "farm", level: 1 },
-    { id: "woodcutters_lodge", level: 1 }, { id: "quarry", level: 1 },
-    { id: "chapel", level: 1 }, { id: "granary", level: 1 }, { id: "stockpile", level: 1 },
   ];
   placeVillageBuildings(starting);
   placeCastleBuildings(starting);

@@ -22,7 +22,7 @@
   "skeletonStaffing": 0.15,
   "baseStorage": { "food": 300, "wood": 250, "stone": 180, "iron": 90, "gold": 8000, "rp": 100000, "token": 100000 },
   "startingResources": { "food": 80, "wood": 70, "stone": 20, "iron": 5, "gold": 10, "rp": 0, "token": 0 },
-  "startingPopulation": 14,
+  "startingPopulation": 6,
   "buildTimeReductionCap": 0.6,
   "productionScale": 0.4,
   "researchPerLevel": 12,
