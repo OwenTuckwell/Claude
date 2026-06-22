@@ -30,7 +30,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   return (
     <div className="vscene">
       <PanZoom fill initialScale={1}>
-        <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill field={{ scale: 0.9, cx: 0.538, cy: 0.46 }}
+        <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill field={{ scale: 0.92, cx: 0.452, cy: 0.46 }}
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
           selIdx={moveMode ? sel : null}
           canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
