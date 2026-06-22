@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel, placementAllowed,
-  footprint, buildingCells,
+  footprint, buildingCells, firstFreeVillageCell,
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
@@ -134,8 +134,9 @@ describe("commands", () => {
     // onto another building's tiles → blocked
     const other = s.buildings.find((b) => b.id !== "town_hall" && b.gx !== undefined)!;
     expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: other.gx!, gy: other.gy! }).result.ok).toBe(false);
-    // a clear corner that fits → allowed
-    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: 11, gy: 11 }).result.ok).toBe(true);
+    // a genuinely free 3×3 spot → allowed
+    const free = firstFreeVillageCell(s.buildings, "town_hall");
+    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: free.gx, gy: free.gy }).result.ok).toBe(true);
   });
 
   it("rejects unaffordable actions", () => {

@@ -26,7 +26,7 @@
   "buildTimeReductionCap": 0.6,
   "productionScale": 0.4,
   "researchPerLevel": 12,
-  "villageGrid": { "cols": 14, "rows": 14 },
+  "villageGrid": { "cols": 14, "rows": 17 },
   "castleGrid": { "cols": 8, "rows": 8 },
   "market": {
     "tokensPerTap": 1,
