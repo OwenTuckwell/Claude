@@ -1,13 +1,14 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-// Pinch-zoom + drag-to-pan, clamped to the board. The frame is sized to the content so
-// the minimum zoom (1) shows the whole board fitted to the frame — you can't zoom out
-// into empty space — and panning is bounded to the edges. Two fingers pinch, one pans;
-// taps still reach the buildings (a drag suppresses the click).
+// Pinch-zoom + drag-to-pan, clamped to the board. In `fill` mode the frame fills its
+// parent and the board fits inside it at min zoom (1) — you can't zoom out into empty
+// space — with panning bounded to the edges. Two fingers pinch, one pans; taps still
+// reach the buildings (a drag suppresses the click).
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const MAX = 3;
 
-export function PanZoom({ children, height = 360, initialScale = 1.3 }: { children: ReactNode; height?: number; initialScale?: number }) {
+export function PanZoom({ children, height = 360, initialScale = 1, fill = false }:
+  { children: ReactNode; height?: number; initialScale?: number; fill?: boolean }) {
   const wrap = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const size = useRef({ cw: 0, ch: 0 });
@@ -26,9 +27,9 @@ export function PanZoom({ children, height = 360, initialScale = 1.3 }: { childr
   useLayoutEffect(() => {
     const measure = () => {
       const w = wrap.current, i = inner.current; if (!w || !i) return;
-      const cw = w.clientWidth, ch = i.offsetHeight;   // content size at scale 1 (transform-independent)
+      const cw = w.clientWidth, ch = fill ? w.clientHeight : i.offsetHeight;
       size.current = { cw, ch };
-      if (ch > 0) setFrameH(ch);
+      if (!fill && ch > 0) setFrameH(ch);
       const s0 = clamp(initialScale, 1, MAX);
       setT(clampT(s0, cw * (1 - s0) / 2, ch * (1 - s0) / 2)); // centred
     };
@@ -36,7 +37,7 @@ export function PanZoom({ children, height = 360, initialScale = 1.3 }: { childr
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fill]);
 
   const list = () => [...ptrs.current.values()];
   const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -70,9 +71,9 @@ export function PanZoom({ children, height = 360, initialScale = 1.3 }: { childr
   const onClickCapture = (e: React.MouseEvent) => { if (dragged.current) { e.stopPropagation(); e.preventDefault(); } };
 
   return (
-    <div ref={wrap} style={{ height: frameH, overflow: "hidden", touchAction: "none", position: "relative", borderRadius: 9 }}
+    <div ref={wrap} style={{ height: fill ? "100%" : frameH, width: "100%", overflow: "hidden", touchAction: "none", position: "relative", borderRadius: fill ? 0 : 9 }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onClickCapture={onClickCapture}>
-      <div ref={inner} style={{ transformOrigin: "0 0", transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})` }}>
+      <div ref={inner} style={{ width: "100%", height: fill ? "100%" : undefined, transformOrigin: "0 0", transform: `translate(${t.x}px, ${t.y}px) scale(${t.s})` }}>
         {children}
       </div>
     </div>

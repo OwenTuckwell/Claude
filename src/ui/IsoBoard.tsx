@@ -101,10 +101,10 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill }: {
   cols: number; rows: number; placed: Placed[];
   selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
-  bg?: string; canPlace?: (gx: number, gy: number) => boolean;
+  bg?: string; canPlace?: (gx: number, gy: number) => boolean; fill?: boolean;
 }) {
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
@@ -173,7 +173,8 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   items.sort((a, b) => a.y - b.y);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block" }} className="isoboard">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? "100%" : "auto"}
+      preserveAspectRatio="xMidYMid meet" style={{ display: "block" }} className="isoboard">
       <defs>
         <radialGradient id="seaG" cx="0.5" cy="0.4" r="0.8"><stop offset="0" stopColor="#4a7e9c" /><stop offset="1" stopColor="#2f5872" /></radialGradient>
         <linearGradient id="wTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a87b4c" /><stop offset="1" stopColor="#7c5a3a" /></linearGradient>

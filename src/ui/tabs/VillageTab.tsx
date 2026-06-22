@@ -25,20 +25,35 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
     .map((inst, idx) => ({ inst, idx }))
     .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
 
+  const queue = state.buildQueue.filter((o) => isVillageBuilding(o.building));
+
   return (
-    <div className="list">
-      {state.buildQueue.length > 0 && (
-        <div className="card">
-          <h3>Under construction</h3>
-          {state.buildQueue.map((o, i) => {
+    <div className="vscene">
+      <PanZoom fill initialScale={1}>
+        <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill
+          placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
+          selIdx={moveMode ? sel : null}
+          canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
+          onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
+          onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+      </PanZoom>
+      <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
+
+      {/* floating heads-up chip */}
+      <div className="scene-chip tl">🏡 Village <span className="tag">Town Hall L{thLevel}</span></div>
+
+      {queue.length > 0 && (
+        <div className="scene-queue">
+          {queue.map((o) => {
             const def = buildingById[o.building];
             const elapsed = o.startedTick === null ? 0 : state.tick - o.startedTick;
             const pct = Math.min(100, (elapsed / o.durationTicks) * 100);
+            const i = state.buildQueue.indexOf(o);
             return (
-              <div key={i}>
-                <div className="queue-item">
-                  <span>{BUILDING_ICONS[o.building]} {def.name} → L{o.targetLevel} {o.startedTick === null ? "(queued)" : ""}</span>
-                  <button className="ghost" onClick={() => dispatch({ type: "cancelBuild", queueIndex: i })}>Cancel</button>
+              <div key={i} className="sq-item">
+                <div className="queue-item" style={{ borderBottom: "none", padding: 0 }}>
+                  <span>{BUILDING_ICONS[o.building]} {def.name} → L{o.targetLevel}{o.startedTick === null ? " (queued)" : ""}</span>
+                  <button className="ghost" onClick={() => dispatch({ type: "cancelBuild", queueIndex: i })}>✕</button>
                 </div>
                 <div className="bar"><i style={{ width: pct + "%" }} /></div>
               </div>
@@ -47,28 +62,12 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
         </div>
       )}
 
-      <div className="card" style={{ padding: 8 }}>
-        <div className="row" style={{ marginBottom: 6 }}>
-          <h3 style={{ margin: 0 }}>🏡 Your village</h3>
-          <span className="tag">Town Hall L{thLevel}</span>
-        </div>
-        <div className="vgrid-wrap" style={{ position: "relative" }}>
-          <PanZoom height={400} initialScale={1.4}>
-            <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png"
-              placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
-              selIdx={moveMode ? sel : null}
-              canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
-              onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
-              onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
-          </PanZoom>
-          <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
-        </div>
-        <div className="row" style={{ marginTop: 6 }}>
-          <span className="muted">{moveMode ? "Tap an empty plot to place it." : "Pinch to zoom · drag to pan · tap a building to manage."}</span>
-          {moveMode
-            ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
-            : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>}
-        </div>
+      {/* action bar (bottom-left, clear of the right rail) */}
+      <div className="scene-actions">
+        {moveMode
+          ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
+          : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>}
+        <span className="scene-hint">{moveMode ? "Tap an empty plot to place it." : "Pinch zoom · drag pan · tap to manage"}</span>
       </div>
 
       {/* building management pop-up */}

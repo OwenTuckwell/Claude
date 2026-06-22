@@ -34,14 +34,16 @@ it("survives an unknown/corrupt save in localStorage", () => {
   expect(container.querySelector(".hud")).not.toBeNull();
 });
 
-it("renders every tab without crashing", () => {
+it("opens every place and pop-out panel without crashing", () => {
   localStorage.clear();
   act(() => { root = createRoot(container); root.render(<App />); });
-  const tabs = Array.from(container.querySelectorAll(".tabs button")) as HTMLButtonElement[];
-  expect(tabs.length).toBeGreaterThanOrEqual(6);
-  for (const tab of tabs) {
-    act(() => { tab.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    expect(container.querySelector(".content")?.childElementCount ?? 0).toBeGreaterThan(0);
+  const buttons = Array.from(container.querySelectorAll(".rail button")) as HTMLButtonElement[];
+  expect(buttons.length).toBeGreaterThanOrEqual(7); // 3 places + 4 panels (+ menu)
+  for (const btn of buttons) {
+    act(() => { btn.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
+    // either a scene fills the stage, or a drawer opened — something is always on screen
+    const live = (container.querySelector(".stage")?.childElementCount ?? 0) + (container.querySelector(".drawer") ? 1 : 0);
+    expect(live).toBeGreaterThan(0);
   }
   // any React render error would have been logged to console.error
   const renderErrors = errors.filter((e) => String(e[0]).includes("not be a child") || String(e[0]).toLowerCase().includes("error"));
