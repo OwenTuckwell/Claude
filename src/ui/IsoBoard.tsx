@@ -205,7 +205,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? "100%" : "auto"}
-      preserveAspectRatio="xMidYMid meet" style={{ display: "block" }} className="isoboard">
+      preserveAspectRatio={fill ? "xMidYMid slice" : "xMidYMid meet"} style={{ display: "block" }} className="isoboard">
       <defs>
         <radialGradient id="seaG" cx="0.5" cy="0.4" r="0.8"><stop offset="0" stopColor="#4a7e9c" /><stop offset="1" stopColor="#2f5872" /></radialGradient>
         <linearGradient id="wTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a87b4c" /><stop offset="1" stopColor="#7c5a3a" /></linearGradient>

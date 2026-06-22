@@ -37,9 +37,9 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
     ...world.aiVillages] as { tile: { x: number; y: number }; player?: boolean; id: string; name: string; difficulty: number }[];
 
   return (
-    <div className="vscene" style={{ aspectRatio: `${w} / ${h}` }}>
+    <div className="vscene">
       <PanZoom fill initialScale={1}>
-        <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet"
+        <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%" preserveAspectRatio="xMidYMid slice"
           className="realm-svg" style={{ display: "block" }}>
           {/* painted realm */}
           <image href="sprites/bg_map.png" x={0} y={0} width={w} height={h} preserveAspectRatio="xMidYMid slice" />
