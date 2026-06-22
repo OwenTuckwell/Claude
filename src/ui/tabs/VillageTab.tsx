@@ -4,7 +4,7 @@ import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuildin
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { IsoBoard, type Placed } from "../IsoBoard";
+import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
 import type { BuildingDef } from "../../sim/types";
 
@@ -17,25 +17,34 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const { cols, rows } = villageGrid();
   const thLevel = townHallLevel(state);
 
+  // a just-finished building waits unplaced (no gx) until the player taps a plot for it
+  const pendingIdx = state.buildings.findIndex((b) => isVillageBuilding(b.id) && b.gx === undefined);
+  const pendingInst = pendingIdx >= 0 ? state.buildings[pendingIdx] : null;
+
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
-  const popupOpen = !!selInst && selDef && !moveMode;
+  const placingExisting = moveMode && sel !== null && !pendingInst;
+  const placeIdx = pendingInst ? pendingIdx : (placingExisting ? sel! : null);
+  const placeId = pendingInst ? pendingInst.id : (placingExisting ? selInst!.id : undefined);
+  const popupOpen = !!selInst && selDef && !moveMode && !pendingInst;
 
   const placed = state.buildings
     .map((inst, idx) => ({ inst, idx }))
     .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
 
   const queue = state.buildQueue.filter((o) => isVillageBuilding(o.building));
+  const fb = boardSize(cols, rows);
 
   return (
-    <div className="vscene">
+    <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
       <PanZoom fill initialScale={1}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill field={{ scale: 0.984, cx: 0.452, cy: 0.491 }}
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
-          selIdx={moveMode ? sel : null}
-          canPlace={selInst ? (gx, gy) => placementAllowed(selInst.id, gx, gy) : undefined}
-          onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
-          onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          selIdx={placingExisting ? sel : null}
+          placeId={pendingInst ? pendingInst.id : undefined}
+          canPlace={placeId ? (gx, gy) => placementAllowed(placeId, gx, gy) : undefined}
+          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }}
+          onMoveTo={(gx, gy) => { if (placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx, gy }); setMoveMode(false); } }} />
       </PanZoom>
       <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
 
@@ -64,10 +73,13 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
 
       {/* action bar (bottom-left, clear of the right rail) */}
       <div className="scene-actions">
-        {moveMode
-          ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
-          : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>}
-        <span className="scene-hint">{moveMode ? "Tap an empty plot to place it." : "Pinch zoom · drag pan · tap to manage"}</span>
+        {pendingInst
+          ? <span className="scene-hint">📍 Tap a plot to place your {buildingById[pendingInst.id].name}.</span>
+          : moveMode
+            ? <><button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
+                <span className="scene-hint">Tap an empty plot to place it.</span></>
+            : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
+                <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>
 
       {/* building management pop-up */}
@@ -101,7 +113,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
       )}
 
       {/* build menu pop-up */}
-      {building && (
+      {building && !pendingInst && (
         <div className="modal" onClick={() => setBuilding(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <div className="row"><h3 style={{ margin: 0 }}>Construct a building</h3>

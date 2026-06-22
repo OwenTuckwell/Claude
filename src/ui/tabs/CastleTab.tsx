@@ -5,7 +5,7 @@ import { isBuildingUnlocked } from "../../sim/effects";
 import { playerDefensePower } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { IsoBoard, type Placed } from "../IsoBoard";
+import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
 
 // The castle as a scenic, designable defence space: lay walls, towers and the keep on the
@@ -21,9 +21,14 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
   const defense = Math.round(playerDefensePower(state));
   const standing = Object.values(state.troops).reduce((a, c) => a + c, 0);
 
+  const pendingIdx = state.buildings.findIndex((b) => !isVillageBuilding(b.id) && b.gx === undefined);
+  const pendingInst = pendingIdx >= 0 ? state.buildings[pendingIdx] : null;
+
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
-  const popupOpen = !!selInst && selDef && !moveMode;
+  const placingExisting = moveMode && sel !== null && !pendingInst;
+  const placeIdx = pendingInst ? pendingIdx : (placingExisting ? sel! : null);
+  const popupOpen = !!selInst && selDef && !moveMode && !pendingInst;
 
   const placed = state.buildings
     .map((inst, idx) => ({ inst, idx }))
@@ -31,15 +36,17 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
 
   const buildable = buildingDefs.filter((d) => d.category === "fortification" && isBuildingUnlocked(d.id, mods));
   const queue = state.buildQueue.filter((o) => !isVillageBuilding(o.building));
+  const fb = boardSize(cols, rows);
 
   return (
-    <div className="vscene">
+    <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
       <PanZoom fill initialScale={1}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_castle.png" fill
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
-          selIdx={moveMode ? sel : null}
-          onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
-          onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          selIdx={placingExisting ? sel : null}
+          placeId={pendingInst ? pendingInst.id : undefined}
+          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }}
+          onMoveTo={(gx, gy) => { if (placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx, gy }); setMoveMode(false); } }} />
       </PanZoom>
 
       <div className="scene-chip tl">🏰 Castle <span className="tag">🛡️ {defense} · ⚔️ {standing}</span></div>
@@ -66,10 +73,13 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
       )}
 
       <div className="scene-actions">
-        {moveMode
-          ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
-          : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>}
-        <span className="scene-hint">{moveMode ? "Tap a spot to place it." : "Pinch zoom · drag pan · tap to manage"}</span>
+        {pendingInst
+          ? <span className="scene-hint">📍 Tap a spot to place your {buildingById[pendingInst.id].name}.</span>
+          : moveMode
+            ? <><button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
+                <span className="scene-hint">Tap a spot to place it.</span></>
+            : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>
+                <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>
 
       {/* fortification management pop-up */}
@@ -105,7 +115,7 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
       )}
 
       {/* fortify (build) pop-up */}
-      {building && (
+      {building && !pendingInst && (
         <div className="modal" onClick={() => setBuilding(false)}>
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <div className="row"><h3 style={{ margin: 0 }}>Raise fortifications</h3>

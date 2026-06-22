@@ -124,11 +124,12 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill, field }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill, field, placeId }: {
   cols: number; rows: number; placed: Placed[];
   selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
   bg?: string; canPlace?: (gx: number, gy: number) => boolean; fill?: boolean;
   field?: { scale: number; cx: number; cy: number };  // platform calibration (per scene)
+  placeId?: string;   // when set, we're placing a NEW (unplaced) building of this id
 }) {
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
@@ -151,13 +152,15 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   const covered = new Map<string, Placed>();
   for (const p of placed) for (let dy = 0; dy < fp(p.id); dy++) for (let dx = 0; dx < fp(p.id); dx++)
     covered.set(`${p.gx + dx},${p.gy + dy}`, p);
-  const moving = selIdx !== null;
-  const movingP = moving ? placed.find((p) => p.idx === selIdx) : undefined;
-  const movingN = movingP ? fp(movingP.id) : 1;
-  // a tile is a valid drop origin if the moving building's whole footprint fits there:
-  // in-grid, clear of OTHER buildings, and passing the zone rule (canPlace).
+  const movingP = selIdx !== null ? placed.find((p) => p.idx === selIdx) : undefined;
+  // active placement = moving an existing building (movingP) OR placing a new one (placeId)
+  const activeId = placeId ?? movingP?.id;
+  const moving = !!activeId;
+  const movingN = activeId ? fp(activeId) : 1;
+  // a tile is a valid drop origin if the whole footprint fits there: in-grid, clear of
+  // OTHER buildings, and passing the zone rule (canPlace).
   const validOrigin = (gx: number, gy: number): boolean => {
-    if (!movingP) return false;
+    if (!activeId) return false;
     if (gx + movingN > cols || gy + movingN > rows) return false;
     if (canPlace && !canPlace(gx, gy)) return false;
     for (let dy = 0; dy < movingN; dy++) for (let dx = 0; dx < movingN; dx++) {
@@ -205,7 +208,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? "100%" : "auto"}
-      preserveAspectRatio={fill ? "xMidYMid slice" : "xMidYMid meet"} style={{ display: "block" }} className="isoboard">
+      preserveAspectRatio="xMidYMid meet" style={{ display: "block" }} className="isoboard">
       <defs>
         <radialGradient id="seaG" cx="0.5" cy="0.4" r="0.8"><stop offset="0" stopColor="#4a7e9c" /><stop offset="1" stopColor="#2f5872" /></radialGradient>
         <linearGradient id="wTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a87b4c" /><stop offset="1" stopColor="#7c5a3a" /></linearGradient>

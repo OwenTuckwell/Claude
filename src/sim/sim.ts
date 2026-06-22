@@ -308,8 +308,8 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
   s.buildQueue = s.buildQueue.filter((o) => {
     if (o.startedTick !== null && s.tick - o.startedTick >= o.durationTicks) {
       if (o.instanceIndex === null) {
-        const cell = isVillageBuilding(o.building) ? firstFreeVillageCell(s.buildings, o.building) : firstFreeCastleCell(s.buildings);
-        s.buildings.push({ id: o.building, level: 1, gx: cell.gx, gy: cell.gy });
+        // Completed but UNPLACED — the player taps an empty plot to set it down.
+        s.buildings.push({ id: o.building, level: 1 });
       } else s.buildings[o.instanceIndex].level = o.targetLevel;
       // Research is earned by DEVELOPING: each building level gained grants RP,
       // amplified by civic buildings (scholars' hall, university).
