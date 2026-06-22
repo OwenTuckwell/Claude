@@ -26,6 +26,7 @@ export interface BuildingDef {
   researchBonus?: number;   // +fraction to RP earned per building level (civic buildings)
   defense?: { health?: number; garrisonSlots?: number };
   tier?: number;        // Town Hall level required to construct (default 1); Appendix S/T
+  footprint?: number;   // square side length in grid tiles (default 1 → 1×1; 2 → 2×2; 3 → 3×3)
   maxLevel: number;
   costBase: ResourceMap;
   costGrowth: number;

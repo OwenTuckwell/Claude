@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel, placementAllowed,
+  footprint, buildingCells,
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
@@ -105,6 +106,36 @@ describe("commands", () => {
     expect(placementAllowed("farm", 0, 0)).toBe(true);       // others go anywhere
     expect(placementAllowed("quarry", 0, 0)).toBe(false);    // north-west: no
     expect(placementAllowed("quarry", 13, 13)).toBe(true);   // south-centre: yes
+  });
+
+  it("gives big buildings multi-tile footprints", () => {
+    expect(footprint("town_hall")).toBe(3);   // 3×3 centrepiece
+    expect(footprint("chapel")).toBe(2);       // 2×2
+    expect(footprint("hovel")).toBe(1);        // 1×1 cottage
+    expect(buildingCells("chapel", 4, 5).sort()).toEqual(["4,5", "4,6", "5,5", "5,6"].sort());
+  });
+
+  it("places starting buildings with no overlapping footprints", () => {
+    const s = fresh();
+    const seen = new Set<string>();
+    for (const b of s.buildings) {
+      for (const c of buildingCells(b.id, b.gx!, b.gy!)) {
+        expect(seen.has(c)).toBe(false);  // every covered cell is claimed once
+        seen.add(c);
+      }
+    }
+  });
+
+  it("won't move a building where its footprint would overlap or leave the grid", () => {
+    const s = fresh();
+    const thIdx = s.buildings.findIndex((b) => b.id === "town_hall"); // 3×3
+    // bottom-right corner: a 3×3 origin at (13,13) on a 14×14 grid spills off the edge
+    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: 13, gy: 13 }).result.ok).toBe(false);
+    // onto another building's tiles → blocked
+    const other = s.buildings.find((b) => b.id !== "town_hall" && b.gx !== undefined)!;
+    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: other.gx!, gy: other.gy! }).result.ok).toBe(false);
+    // a clear corner that fits → allowed
+    expect(applyCommand(s, { type: "moveBuilding", index: thIdx, gx: 11, gy: 11 }).result.ok).toBe(true);
   });
 
   it("rejects unaffordable actions", () => {

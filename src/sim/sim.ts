@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -82,61 +82,92 @@ export const villageGrid = () => balance.villageGrid;
 export function isVillageBuilding(id: string): boolean {
   return buildingById[id].category !== "fortification";
 }
-/** Per-building placement rules. Quarry may only sit in the southmost 1/5 (screen-bottom)
- *  and middle 1/3 (screen-centre) of the village grid; everything else goes anywhere. */
-export function placementAllowed(id: string, gx: number, gy: number): boolean {
-  if (id !== "quarry") return true;
-  const { cols, rows } = balance.villageGrid;
-  const maxSum = (cols - 1) + (rows - 1);
-  const sum = gx + gy;            // screen Y (south = larger)
-  const diff = gx - gy;           // screen X (centre = ~0)
-  return sum >= maxSum * 0.8 && Math.abs(diff) <= maxSum / 6;
+/** Square side length (in tiles) of a building's footprint. 1×1 unless the def says bigger. */
+export function footprint(id: string): number {
+  return buildingById[id]?.footprint ?? 1;
 }
-export function firstFreeVillageCell(buildings: BuildingInstance[], id = ""): { gx: number; gy: number } {
+/** The grid cells ("x,y" keys) a building covers when its top (back) corner is at (gx,gy). */
+export function buildingCells(id: string, gx: number, gy: number): string[] {
+  const n = footprint(id);
+  const out: string[] = [];
+  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push(`${gx + dx},${gy + dy}`);
+  return out;
+}
+/** Per-building placement rules for the VILLAGE grid: the whole footprint must fit on the
+ *  grid, and the Quarry's footprint must sit entirely in the southmost 1/5 (screen-bottom)
+ *  and middle 1/3 (screen-centre). Everything else goes anywhere it fits. */
+export function placementAllowed(id: string, gx: number, gy: number): boolean {
   const { cols, rows } = balance.villageGrid;
-  const taken = new Set(buildings.filter((b) => isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
-    if (!taken.has(`${x},${y}`) && placementAllowed(id, x, y)) return { gx: x, gy: y };
+  const n = footprint(id);
+  if (gx < 0 || gy < 0 || gx + n > cols || gy + n > rows) return false;
+  if (id !== "quarry") return true;
+  const maxSum = (cols - 1) + (rows - 1);
+  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
+    const sum = (gx + dx) + (gy + dy);   // screen Y (south = larger)
+    const diff = (gx + dx) - (gy + dy);  // screen X (centre = ~0)
+    if (!(sum >= maxSum * 0.8 && Math.abs(diff) <= maxSum / 6)) return false;
+  }
+  return true;
+}
+/** Occupied-cell set for one zone (village or castle), spanning every building's footprint. */
+function occupiedCells(buildings: BuildingInstance[], village: boolean, skipIndex = -1): Set<string> {
+  const taken = new Set<string>();
+  buildings.forEach((b, i) => {
+    if (i === skipIndex || isVillageBuilding(b.id) !== village || b.gx === undefined || b.gy === undefined) return;
+    for (const c of buildingCells(b.id, b.gx, b.gy)) taken.add(c);
+  });
+  return taken;
+}
+/** Scan a grid for a free spot where id's whole footprint fits (no overlap, rules pass).
+ *  Tries a coarse lattice first so big sprites get breathing room, then a dense fallback. */
+function findFreeSpot(
+  id: string, taken: Set<string>, grid: { cols: number; rows: number },
+  allowed: (id: string, x: number, y: number) => boolean,
+): { gx: number; gy: number } {
+  const fits = (x: number, y: number) => allowed(id, x, y) && buildingCells(id, x, y).every((c) => !taken.has(c));
+  for (const step of [2, 1]) {
+    for (let y = 0; y < grid.rows; y += step) for (let x = 0; x < grid.cols; x += step)
+      if (fits(x, y)) return { gx: x, gy: y };
+  }
   return { gx: 0, gy: 0 };
 }
-/** Assign grid cells to village buildings that lack one, spaced out on a coarse lattice
- *  so the big sprites get breathing room (init & save migration). */
+const inGrid = (grid: { cols: number; rows: number }) => (id: string, x: number, y: number) => {
+  const n = footprint(id);
+  return x >= 0 && y >= 0 && x + n <= grid.cols && y + n <= grid.rows;
+};
+export function firstFreeVillageCell(buildings: BuildingInstance[], id = ""): { gx: number; gy: number } {
+  return findFreeSpot(id, occupiedCells(buildings, true), balance.villageGrid, placementAllowed);
+}
+/** Assign grid cells to village buildings that lack one (init & save migration). Largest
+ *  footprints first, so the big centrepieces claim room before the cottages fill in. */
 export function placeVillageBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
-  const { cols, rows } = balance.villageGrid;
-  const taken = new Set(buildings.filter((b) => isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
-  const spots: [number, number][] = [];
-  for (let y = 1; y < rows; y += 2) for (let x = 1; x < cols; x += 2) spots.push([x, y]);
-  for (const b of buildings) {
-    if (!isVillageBuilding(b.id) || b.gx !== undefined) continue;
-    const s = spots.find((sp) => !taken.has(`${sp[0]},${sp[1]}`) && placementAllowed(b.id, sp[0], sp[1]))
-      ?? [firstFreeVillageCell(buildings, b.id).gx, firstFreeVillageCell(buildings, b.id).gy];
-    b.gx = s[0]; b.gy = s[1]; taken.add(`${b.gx},${b.gy}`);
-  }
-  return buildings;
+  return placeZone(buildings, true, balance.villageGrid, placementAllowed);
 }
 
 // ---- Castle layout grid (design your fortress) — fortifications reuse gx/gy here. ----
 export const castleGrid = () => balance.castleGrid;
 export function firstFreeCastleCell(buildings: BuildingInstance[]): { gx: number; gy: number } {
-  const { cols, rows } = balance.castleGrid;
-  const taken = new Set(buildings.filter((b) => !isVillageBuilding(b.id) && b.gx !== undefined).map((b) => `${b.gx},${b.gy}`));
-  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) if (!taken.has(`${x},${y}`)) return { gx: x, gy: y };
-  return { gx: 0, gy: 0 };
+  return findFreeSpot("", occupiedCells(buildings, false), balance.castleGrid, inGrid(balance.castleGrid));
 }
 export function placeCastleBuildings(buildings: BuildingInstance[]): BuildingInstance[] {
-  return placeZone(buildings, false, balance.castleGrid);
+  return placeZone(buildings, false, balance.castleGrid, inGrid(balance.castleGrid));
 }
 
-/** Shared placer: assign cells to buildings of one zone (village vs castle) that lack them. */
-function placeZone(buildings: BuildingInstance[], village: boolean, grid: { cols: number; rows: number }): BuildingInstance[] {
+/** Shared placer: assign footprint-fitting cells to buildings of one zone that lack them. */
+function placeZone(
+  buildings: BuildingInstance[], village: boolean, grid: { cols: number; rows: number },
+  allowed: (id: string, x: number, y: number) => boolean,
+): BuildingInstance[] {
   const inZone = (b: BuildingInstance) => isVillageBuilding(b.id) === village;
-  const taken = new Set<string>();
-  for (const b of buildings) if (inZone(b) && b.gx !== undefined && b.gy !== undefined) taken.add(`${b.gx},${b.gy}`);
-  const free = (): { gx: number; gy: number } => {
-    for (let y = 0; y < grid.rows; y++) for (let x = 0; x < grid.cols; x++) if (!taken.has(`${x},${y}`)) { taken.add(`${x},${y}`); return { gx: x, gy: y }; }
-    return { gx: 0, gy: 0 };
-  };
-  for (const b of buildings) if (inZone(b) && b.gx === undefined) { const c = free(); b.gx = c.gx; b.gy = c.gy; }
+  const taken = occupiedCells(buildings, village);
+  const pending = buildings
+    .filter((b) => inZone(b) && b.gx === undefined)
+    .sort((a, b) => footprint(b.id) - footprint(a.id));   // biggest first
+  for (const b of pending) {
+    const c = findFreeSpot(b.id, taken, grid, allowed);
+    b.gx = c.gx; b.gy = c.gy;
+    for (const cell of buildingCells(b.id, c.gx, c.gy)) taken.add(cell);
+  }
   return buildings;
 }
 
@@ -622,11 +653,11 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       const inst = s.buildings[cmd.index];
       if (!inst) return fail("No such building.");
       const village = isVillageBuilding(inst.id);
-      const { cols, rows } = village ? balance.villageGrid : balance.castleGrid;
-      if (cmd.gx < 0 || cmd.gy < 0 || cmd.gx >= cols || cmd.gy >= rows) return fail("Off the grid.");
-      if (village && !placementAllowed(inst.id, cmd.gx, cmd.gy)) return fail("That building can't go there.");
-      const occ = s.buildings.findIndex((b, i) => i !== cmd.index && isVillageBuilding(b.id) === village && b.gx === cmd.gx && b.gy === cmd.gy);
-      if (occ >= 0) { s.buildings[occ].gx = inst.gx; s.buildings[occ].gy = inst.gy; } // swap plots
+      const grid = village ? balance.villageGrid : balance.castleGrid;
+      const fitsGrid = village ? placementAllowed(inst.id, cmd.gx, cmd.gy) : inGrid(grid)(inst.id, cmd.gx, cmd.gy);
+      if (!fitsGrid) return fail("That building can't go there.");
+      const taken = occupiedCells(s.buildings, village, cmd.index); // everything except this building
+      if (buildingCells(inst.id, cmd.gx, cmd.gy).some((c) => taken.has(c))) return fail("Not enough room there.");
       inst.gx = cmd.gx; inst.gy = cmd.gy;
       return ok();
     }

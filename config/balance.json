@@ -27,7 +27,7 @@
   "productionScale": 0.4,
   "researchPerLevel": 12,
   "villageGrid": { "cols": 14, "rows": 14 },
-  "castleGrid": { "cols": 5, "rows": 5 },
+  "castleGrid": { "cols": 8, "rows": 8 },
   "market": {
     "tokensPerTap": 1,
     "buyPriceTokens": { "food": 2.5, "wood": 2.5, "stone": 5, "iron": 12.5, "gold": 7.5 },

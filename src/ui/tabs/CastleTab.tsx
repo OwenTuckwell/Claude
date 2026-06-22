@@ -1,118 +1,143 @@
 import { useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks, castleGrid, isVillageBuilding } from "../../sim/sim";
+import { buildCost, buildTimeTicks, castleGrid, townHallLevel, isVillageBuilding } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { playerDefensePower } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { BuildingSprite } from "../BuildingSprite";
+import { IsoBoard, type Placed } from "../IsoBoard";
+import { PanZoom } from "../PanZoom";
 
-// Phase 3 — the castle as a designable defence space (docs/05 §3, Appendix A).
-// Lay out walls/towers/keep on the castle grid; they set home defence, which repels AI
-// border raids. The troops that defend are your standing army.
+// The castle as a scenic, designable defence space (docs/05 §3, Appendix A). Lay walls,
+// towers and the keep on the isometric castle ground; they set home defence, which repels
+// AI border raids. Same tap-to-manage pop-ups as the village; the troops that defend are
+// your standing army.
 export function CastleTab({ state, mods, dispatch }: TabProps) {
-  const [sel, setSel] = useState<number | null>(null);
-  const [building, setBuilding] = useState(false);
+  const [sel, setSel] = useState<number | null>(null);     // selected fortification index
+  const [moveMode, setMoveMode] = useState(false);
+  const [building, setBuilding] = useState(false);          // build menu open
   const { cols, rows } = castleGrid();
+  const thLevel = townHallLevel(state);
 
   const defense = Math.round(playerDefensePower(state));
   const standing = Object.values(state.troops).reduce((a, c) => a + c, 0);
-  const busy = new Set(state.buildQueue.map((o) => o.instanceIndex).filter((x): x is number => x !== null));
+
   const selInst = sel !== null ? state.buildings[sel] : null;
   const selDef = selInst ? buildingById[selInst.id] : null;
-  const selIsFort = !!selInst && !isVillageBuilding(selInst.id);
-  const buildable = buildingDefs.filter((d) => d.category === "fortification" && isBuildingUnlocked(d.id, mods));
+  const popupOpen = !!selInst && selDef && !moveMode;
 
   const placed = state.buildings
-    .map((b, idx) => ({ b, idx }))
-    .filter(({ b }) => buildingById[b.id].category === "fortification" && b.gx !== undefined);
+    .map((inst, idx) => ({ inst, idx }))
+    .filter(({ inst }) => !isVillageBuilding(inst.id) && inst.gx !== undefined);
+
+  const buildable = buildingDefs.filter((d) => d.category === "fortification" && isBuildingUnlocked(d.id, mods));
 
   return (
     <div className="list">
-      <div className="card" style={{ padding: 8 }}>
-        <div className="row" style={{ marginBottom: 6 }}>
-          <h3 style={{ margin: 0 }}>🏰 Castle layout</h3>
-          <span>🛡️ <strong style={{ color: "var(--gold)" }}>{defense}</strong> · ⚔️ {standing}</span>
-        </div>
-        <div className="vgrid-wrap" style={{ position: "relative" }}>
-          <svg className="cgrid" width={cols * 40} height={rows * 40} viewBox={`0 0 ${cols} ${rows}`}
-            style={{ width: "100%", height: "auto", display: "block", borderRadius: 8 }}>
-            {Array.from({ length: cols * rows }, (_, i) => {
-              const x = i % cols, y = Math.floor(i / cols);
-              const occupied = placed.some(({ b }) => b.gx === x && b.gy === y);
-              const isMoveTarget = selIsFort && !occupied;
-              return <rect key={i} x={x} y={y} width={1} height={1}
-                fill={(x + y) % 2 ? "#9a948b" : "#8f897f"} stroke="rgba(46,38,32,0.22)" strokeWidth={0.03}
-                style={{ cursor: isMoveTarget ? "copy" : "default" }}
-                onClick={() => { if (isMoveTarget && sel !== null) dispatch({ type: "moveBuilding", index: sel, gx: x, gy: y }); }} />;
-            })}
-            {selInst && selIsFort && selInst.gx !== undefined &&
-              <rect x={selInst.gx} y={selInst.gy} width={1} height={1} fill="none" stroke="#b07d1a" strokeWidth={0.12} />}
-          </svg>
-          {placed.length === 0 && <div className="castle-empty">No walls yet — research <b>Masonry</b> and raise some.</div>}
-          {placed.map(({ b, idx }) => (
-            <button key={idx} className={"vbuild" + (sel === idx ? " sel" : "") + (busy.has(idx) ? " busy" : "")}
-              style={{ left: `${((b.gx! + 0.5) / cols) * 100}%`, top: `${((b.gy! + 0.5) / rows) * 100}%` }}
-              title={buildingById[b.id].name}
-              onClick={() => { setSel(idx === sel ? null : idx); setBuilding(false); }}>
-              <span className="vb-ic"><BuildingSprite id={b.id} /></span>
-              <span className="vb-lv">{b.level}</span>
-            </button>
-          ))}
-        </div>
-        <div className="row" style={{ marginTop: 6 }}>
-          <span className="muted">{selIsFort ? "Tap a stone tile to move it." : "Tap a structure to inspect it."}</span>
-          <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>
-        </div>
-      </div>
-
-      {selInst && selDef && (
+      {state.buildQueue.some((o) => !isVillageBuilding(o.building)) && (
         <div className="card">
-          <div className="row">
-            <h3 style={{ margin: 0 }}>{BUILDING_ICONS[selInst.id]} {selDef.name} <span className="tag">L{selInst.level}</span></h3>
-            <button className="ghost" onClick={() => setSel(null)}>Close</button>
-          </div>
-          <div className="muted">Wall HP {(selDef.defense?.health ?? 0) * selInst.level}{selDef.defense?.garrisonSlots ? ` · ${selDef.defense.garrisonSlots * selInst.level} archer slots` : ""}</div>
-          {(() => {
-            const maxed = selInst.level >= selDef.maxLevel;
-            const next = selInst.level + 1;
-            const cost = buildCost(selDef, next);
+          <h3>Under construction</h3>
+          {state.buildQueue.map((o, i) => isVillageBuilding(o.building) ? null : (() => {
+            const def = buildingById[o.building];
+            const elapsed = o.startedTick === null ? 0 : state.tick - o.startedTick;
+            const pct = Math.min(100, (elapsed / o.durationTicks) * 100);
             return (
-              <div className="row" style={{ marginTop: 8 }}>
-                <div className="cost">{maxed ? "Fully upgraded." : `${costString(cost)} · ${fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)}`}</div>
-                <button className="act" disabled={maxed || !canAfford(state, cost)}
-                  onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
-                  {maxed ? "Max" : `Reinforce → L${next}`}
-                </button>
+              <div key={i}>
+                <div className="queue-item">
+                  <span>{BUILDING_ICONS[o.building]} {def.name} → L{o.targetLevel} {o.startedTick === null ? "(queued)" : ""}</span>
+                  <button className="ghost" onClick={() => dispatch({ type: "cancelBuild", queueIndex: i })}>Cancel</button>
+                </div>
+                <div className="bar"><i style={{ width: pct + "%" }} /></div>
               </div>
             );
-          })()}
+          })())}
         </div>
       )}
 
-      {building && (
-        <div className="card">
-          <div className="row"><h3 style={{ margin: 0 }}>Raise new fortifications</h3>
-            <button className="ghost" onClick={() => setBuilding(false)}>Close</button></div>
-          {buildable.length === 0 ? <div className="muted">Research <strong>Masonry</strong> (Construction) to build walls.</div> : (
-            <div className="list" style={{ marginTop: 6 }}>
-              {buildable.map((def) => {
-                const cost = buildCost(def, 1);
-                const missing = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
-                return (
-                  <div className="row" key={def.id}>
-                    <div>
-                      <strong>{BUILDING_ICONS[def.id] ?? "🧱"} {def.name}</strong>
-                      <div className="cost">HP {def.defense?.health}/lvl{def.defense?.garrisonSlots ? ` · ${def.defense.garrisonSlots} slots` : ""} · {costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
-                      {missing && <div className="cost">needs {buildingById[missing]?.name}</div>}
-                    </div>
-                    <button className="act" disabled={!!missing || !canAfford(state, cost)}
-                      onClick={() => dispatch({ type: "build", building: def.id, instanceIndex: null })}>Build</button>
-                  </div>
-                );
-              })}
+      <div className="card" style={{ padding: 8 }}>
+        <div className="row" style={{ marginBottom: 6 }}>
+          <h3 style={{ margin: 0 }}>🏰 Your castle</h3>
+          <span>🛡️ <strong style={{ color: "var(--gold)" }}>{defense}</strong> · ⚔️ {standing}</span>
+        </div>
+        <div className="vgrid-wrap" style={{ position: "relative" }}>
+          <PanZoom height={400} initialScale={1.4}>
+            <IsoBoard cols={cols} rows={rows} bg="sprites/bg_castle.png"
+              placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
+              selIdx={moveMode ? sel : null}
+              onSelect={(idx) => { setSel(idx); setMoveMode(false); }}
+              onMoveTo={(gx, gy) => { if (sel !== null) { dispatch({ type: "moveBuilding", index: sel, gx, gy }); setMoveMode(false); } }} />
+          </PanZoom>
+          {placed.length === 0 && <div className="castle-empty">No walls yet — research <b>Masonry</b> and raise some.</div>}
+        </div>
+        <div className="row" style={{ marginTop: 6 }}>
+          <span className="muted">{moveMode ? "Tap a spot to place it." : "Pinch to zoom · drag to pan · tap a structure to manage."}</span>
+          {moveMode
+            ? <button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
+            : <button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>}
+        </div>
+      </div>
+
+      {/* fortification management pop-up */}
+      {popupOpen && selInst && selDef && (
+        <div className="modal" onClick={() => setSel(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="row">
+              <h3 style={{ margin: 0 }}>{BUILDING_ICONS[selInst.id]} {selDef.name} <span className="tag">L{selInst.level}</span></h3>
+              <button className="ghost" onClick={() => setSel(null)}>✕</button>
             </div>
-          )}
+            <div className="muted" style={{ margin: "6px 0" }}>
+              Wall HP {(selDef.defense?.health ?? 0) * selInst.level}{selDef.defense?.garrisonSlots ? ` · ${selDef.defense.garrisonSlots * selInst.level} archer slots` : ""}
+            </div>
+            {(() => {
+              const maxed = selInst.level >= selDef.maxLevel;
+              const next = selInst.level + 1;
+              const cost = buildCost(selDef, next);
+              return (
+                <>
+                  {!maxed && <div className="cost" style={{ marginBottom: 8 }}>Reinforce → L{next}: {costString(cost)} · {fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)}</div>}
+                  <div className="row">
+                    <button className="ghost" onClick={() => setMoveMode(true)}>↔ Move</button>
+                    <button className="act" disabled={maxed || !canAfford(state, cost)}
+                      onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
+                      {maxed ? "Max level" : "Reinforce"}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* fortify (build) pop-up */}
+      {building && (
+        <div className="modal" onClick={() => setBuilding(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="row"><h3 style={{ margin: 0 }}>Raise fortifications</h3>
+              <button className="ghost" onClick={() => setBuilding(false)}>✕</button></div>
+            {buildable.length === 0 ? <div className="muted" style={{ marginTop: 6 }}>Research <strong>Masonry</strong> (Construction) to build walls.</div> : (
+              <div className="list" style={{ marginTop: 6 }}>
+                {buildable.map((def) => {
+                  const cost = buildCost(def, 1);
+                  const missingReq = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
+                  const tier = def.tier ?? 1;
+                  const tierLocked = thLevel < tier;
+                  return (
+                    <div className="row" key={def.id}>
+                      <div>
+                        <strong>{BUILDING_ICONS[def.id] ?? "🧱"} {def.name}</strong>
+                        <div className="cost">HP {def.defense?.health}/lvl{def.defense?.garrisonSlots ? ` · ${def.defense.garrisonSlots} slots` : ""} · {costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
+                        {tierLocked && <div className="cost" style={{ color: "var(--bad)" }}>🔒 needs Town Hall L{tier}</div>}
+                        {missingReq && <div className="cost">needs {buildingById[missingReq]?.name}</div>}
+                      </div>
+                      <button className="act" disabled={tierLocked || !!missingReq || !canAfford(state, cost)}
+                        onClick={() => { dispatch({ type: "build", building: def.id, instanceIndex: null }); setBuilding(false); }}>Build</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { buildingById } from "../sim/content";
+import { footprint } from "../sim/sim";
 
 // A scenic isometric board: a soft grass island ringed by beach & sea, with buildings
 // drawn as shaded little structures (gradient walls, overhanging roofs, chimneys,
@@ -10,9 +11,9 @@ const PAD = 16, HEADROOM = 64;
 
 export interface Placed { idx: number; id: string; level: number; gx: number; gy: number; }
 
-// per-building sprite scale tweaks (multiplier on the base box)
+// per-building sprite scale tweaks (multiplier on the footprint-sized base box)
 const SCALE: Record<string, number> = {
-  hovel: 0.5, farm: 1.15, granary: 0.75, stockpile: 0.75, woodcutters_lodge: 0.75, town_hall: 1.5,
+  hovel: 0.5, farm: 1.15, granary: 0.85, stockpile: 0.85, woodcutters_lodge: 0.75,
 };
 
 interface Cfg { wall: string; wallDark: string; roof: string; roofDark: string; h: number; roofH: number; flag?: boolean; round?: boolean; }
@@ -68,17 +69,19 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
   );
 }
 
-/** Renders a real PNG sprite (public/sprites/<id>.png) if present, anchored on the tile;
- *  otherwise the drawn vector building. Drop a transparent PNG to upgrade any building. */
-function IsoBuilding({ cx, cy, id, level }: { cx: number; cy: number; id: string; level: number }) {
+/** Renders a real PNG sprite (public/sprites/<id>.png) if present, sized to span the
+ *  building's square footprint; otherwise the drawn vector building. cx is the block's
+ *  centre x; cyBase is the front (bottom) corner-tile centre y; n is the footprint side. */
+function IsoBuilding({ cx, cyBase, id, level, n }: { cx: number; cyBase: number; id: string; level: number; n: number }) {
   const [loaded, setLoaded] = useState(false);
   const sc = SCALE[id] ?? 1;
-  const w = TW * 1.8 * sc, h = TW * 1.2 * sc;   // building art box (per-building scale)
+  // box grows with footprint but keeps the tuned 1×1 size (n=1 → 1.8/1.2 TW, unchanged)
+  const w = TW * (0.9 * n + 0.9) * sc, h = TW * (0.6 * n + 0.6) * sc;
   return (
     <g>
-      <ellipse cx={cx} cy={cy + TH * 0.18} rx={TW * 0.34} ry={TH * 0.34} fill="rgba(20,28,12,0.22)" />
-      {!loaded && <Building cx={cx} cy={cy} id={id} level={level} />}
-      <image href={`sprites/${id}.png`} x={cx - w / 2} y={cy + TH * 0.35 - h} width={w} height={h}
+      <ellipse cx={cx} cy={cyBase + TH * 0.18} rx={TW * 0.34 * n} ry={TH * 0.34 * n} fill="rgba(20,28,12,0.22)" />
+      {!loaded && <Building cx={cx} cy={cyBase} id={id} level={level} />}
+      <image href={`sprites/${id}.png`} x={cx - w / 2} y={cyBase + TH * 0.35 - h} width={w} height={h}
         preserveAspectRatio="xMidYMax meet" style={{ display: loaded ? "" : "none" }}
         onLoad={() => setLoaded(true)} onError={() => { /* keep vector */ }} />
     </g>
@@ -112,8 +115,26 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   const ox = PAD - minSx + TW / 2 - W * 0.06;
   const oy = PAD + HEADROOM - H * 0.05;
 
-  const occ = new Map(placed.map((p) => [`${p.gx},${p.gy}`, p]));
+  const fp = (id: string) => footprint(id);
+  // every cell each building covers → its Placed; used for occupancy & occlusion
+  const covered = new Map<string, Placed>();
+  for (const p of placed) for (let dy = 0; dy < fp(p.id); dy++) for (let dx = 0; dx < fp(p.id); dx++)
+    covered.set(`${p.gx + dx},${p.gy + dy}`, p);
   const moving = selIdx !== null;
+  const movingP = moving ? placed.find((p) => p.idx === selIdx) : undefined;
+  const movingN = movingP ? fp(movingP.id) : 1;
+  // a tile is a valid drop origin if the moving building's whole footprint fits there:
+  // in-grid, clear of OTHER buildings, and passing the zone rule (canPlace).
+  const validOrigin = (gx: number, gy: number): boolean => {
+    if (!movingP) return false;
+    if (gx + movingN > cols || gy + movingN > rows) return false;
+    if (canPlace && !canPlace(gx, gy)) return false;
+    for (let dy = 0; dy < movingN; dy++) for (let dx = 0; dx < movingN; dx++) {
+      const occupant = covered.get(`${gx + dx},${gy + dy}`);
+      if (occupant && occupant.idx !== selIdx) return false;
+    }
+    return true;
+  };
   const cells: { gx: number; gy: number }[] = [];
   for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) cells.push({ gx, gy });
 
@@ -126,8 +147,30 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   const grow = (p: number[], f: number) => [ctr[0] + (p[0] - ctr[0]) * f, ctr[1] + (p[1] - ctr[1]) * f];
   const sand = [grow(cN, 1.12), grow(cE, 1.12), grow(cS, 1.12), grow(cW, 1.12)];
 
-  const treeAt = (gx: number, gy: number) => !occ.has(`${gx},${gy}`) && ((gx * 7 + gy * 13) % 4 === 0);
-  const bushAt = (gx: number, gy: number) => !occ.has(`${gx},${gy}`) && ((gx * 5 + gy * 11) % 7 === 0) && !treeAt(gx, gy);
+  const treeAt = (gx: number, gy: number) => !covered.has(`${gx},${gy}`) && ((gx * 7 + gy * 13) % 4 === 0);
+  const bushAt = (gx: number, gy: number) => !covered.has(`${gx},${gy}`) && ((gx * 5 + gy * 11) % 7 === 0) && !treeAt(gx, gy);
+
+  // back-to-front draw list: buildings keyed by their front (bottom) corner, scenery by tile
+  type Item = { key: string; y: number; el: React.ReactNode };
+  const items: Item[] = [];
+  for (const p of placed) {
+    const n = fp(p.id);
+    const cMid = (p.gx + (n - 1) / 2), rMid = (p.gy + (n - 1) / 2);   // block centre (grid)
+    const cx = sx(cMid, rMid) + ox;
+    const cyBase = sy(p.gx + n - 1, p.gy + n - 1) + oy;               // front corner tile centre
+    items.push({
+      key: `b${p.gx}-${p.gy}`, y: cyBase,
+      el: <g key={`b${p.gx}-${p.gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
+        <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} />
+      </g>,
+    });
+  }
+  if (!bg) for (const { gx, gy } of cells) {
+    const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
+    if (treeAt(gx, gy)) items.push({ key: `t${gx}-${gy}`, y: cy, el: <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} /> });
+    else if (bushAt(gx, gy)) items.push({ key: `s${gx}-${gy}`, y: cy, el: <Bush key={`s${gx}-${gy}`} cx={cx} cy={cy} /> });
+  }
+  items.sort((a, b) => a.y - b.y);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" style={{ display: "block" }} className="isoboard">
@@ -148,31 +191,27 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
             <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
             <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
           </>}
-      {/* tiles: transparent ground, highlighted only as move targets (invisible grid) */}
+      {/* tiles: transparent ground; while moving, every valid drop ORIGIN lights up */}
       {cells.map(({ gx, gy }) => {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
-        const placeable = !occ.has(`${gx},${gy}`) && (!canPlace || canPlace(gx, gy));
+        const placeable = moving && validOrigin(gx, gy);
         const grass = bg ? "transparent" : ((gx + gy) % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)");
-        const fill = moving && placeable ? "rgba(231,192,97,0.4)" : grass;
+        const fill = placeable ? "rgba(231,192,97,0.4)" : grass;
         return <polygon key={`g${gx}-${gy}`}
           points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])}
-          fill={fill} style={{ cursor: moving && placeable ? "copy" : "default" }}
-          onClick={() => { if (moving && placeable) onMoveTo(gx, gy); }} />;
+          fill={fill} style={{ cursor: placeable ? "copy" : "default" }}
+          onClick={() => { if (placeable) onMoveTo(gx, gy); }} />;
       })}
-      {selIdx !== null && (() => { const p = placed.find((x) => x.idx === selIdx); if (!p) return null;
-        const cx = sx(p.gx, p.gy) + ox, cy = sy(p.gx, p.gy) + oy;
-        return <polygon points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])} fill="none" stroke="#f1d985" strokeWidth={2.5} />;
+      {/* outline the selected building's whole footprint diamond */}
+      {movingP && (() => {
+        const n = fp(movingP.id);
+        const N = [sx(movingP.gx, movingP.gy) + ox, sy(movingP.gx, movingP.gy) + oy - TH / 2];
+        const E = [sx(movingP.gx + n - 1, movingP.gy) + ox + TW / 2, sy(movingP.gx + n - 1, movingP.gy) + oy];
+        const S = [sx(movingP.gx + n - 1, movingP.gy + n - 1) + ox, sy(movingP.gx + n - 1, movingP.gy + n - 1) + oy + TH / 2];
+        const Wc = [sx(movingP.gx, movingP.gy + n - 1) + ox - TW / 2, sy(movingP.gx, movingP.gy + n - 1) + oy];
+        return <polygon points={pts([N, E, S, Wc])} fill="none" stroke="#f1d985" strokeWidth={2.5} />;
       })()}
-      {cells.slice().sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy)).map(({ gx, gy }) => {
-        const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
-        const p = occ.get(`${gx},${gy}`);
-        if (p) return <g key={`b${gx}-${gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
-          <IsoBuilding cx={cx} cy={cy} id={p.id} level={p.level} />
-        </g>;
-        if (!bg && treeAt(gx, gy)) return <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} />;
-        if (!bg && bushAt(gx, gy)) return <Bush key={`s${gx}-${gy}`} cx={cx} cy={cy} />;
-        return null;
-      })}
+      {items.map((it) => it.el)}
     </svg>
   );
 }
