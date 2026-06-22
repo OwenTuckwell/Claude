@@ -53,7 +53,7 @@ export function App() {
         <div className="rotate-inner">📱↻<br />Rotate your device<br /><span>Bannerfall plays in landscape</span></div>
       </div>
 
-      <div className="game">
+      <div className="game" style={{ backgroundImage: "linear-gradient(rgba(14,15,17,0.5), rgba(14,15,17,0.6)), url(sprites/bg_app.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
         {/* top resource bar */}
         <div className="hud">
           <div className="hud-res">
