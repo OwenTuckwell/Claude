@@ -16,6 +16,7 @@ export const BUILDING_ICONS: Record<string, string> = {
   hovel: "🛖", granary: "🏚️", stockpile: "📦", warehouse: "🏬", chapel: "⛪", tavern: "🍺",
   scholars_hall: "📚", university: "🎓", marketplace: "🏪",
   barracks: "🏯", archery_range: "🎯", blacksmith: "🔨", siege_workshop: "🪚",
+  vineyard: "🍇", banquet_hall: "🍷", arena: "🏟️", stables: "🐴", training_grounds: "🎽", weaponsmith: "⚒️", armoury: "🛡️",
   wall: "🧱", tower: "🗼", watchtower: "🏰",
   keep: "🏯", gatehouse: "🚪", moat: "🌊", barbican: "🏰",
 };
