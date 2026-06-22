@@ -105,10 +105,11 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill, field }: {
   cols: number; rows: number; placed: Placed[];
   selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
   bg?: string; canPlace?: (gx: number, gy: number) => boolean; fill?: boolean;
+  field?: { scale: number; cx: number; cy: number };  // platform calibration (per scene)
 }) {
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
@@ -120,10 +121,11 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   const ox = PAD - minSx + TW / 2;
   const oy = PAD + HEADROOM;
   // centre of the grid diamond, and the translate that lands it on the painted platform
+  const fS = field?.scale ?? FIELD_SCALE, fCX = field?.cx ?? FIELD_CX, fCY = field?.cy ?? FIELD_CY;
   const fcx = ox, fcy = oy + sy(cols - 1, rows - 1) / 2;
-  const ftx = W * FIELD_CX - FIELD_SCALE * fcx;
-  const fty = H * FIELD_CY - FIELD_SCALE * fcy;
-  const fieldT = `translate(${ftx.toFixed(1)} ${fty.toFixed(1)}) scale(${FIELD_SCALE})`;
+  const ftx = W * fCX - fS * fcx;
+  const fty = H * fCY - fS * fcy;
+  const fieldT = `translate(${ftx.toFixed(1)} ${fty.toFixed(1)}) scale(${fS})`;
 
   const fp = (id: string) => footprint(id);
   // every cell each building covers → its Placed; used for occupancy & occlusion
