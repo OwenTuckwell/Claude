@@ -85,7 +85,7 @@ export function ResearchTab({ state, dispatch }: TabProps) {
   };
 
   return (
-    <div className="rwrap">
+    <div className="rwrap" style={{ backgroundImage: "linear-gradient(rgba(244,234,210,0.55), rgba(244,234,210,0.62)), url(sprites/bg_research.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
       <div className="rtabs">
         {BRANCH_ORDER.map((b) => (
           <button key={b} className={"rtab" + (b === branch ? " on" : "")}
