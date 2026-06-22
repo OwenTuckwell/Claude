@@ -15,9 +15,20 @@ const FIELD_SCALE = 0.82, FIELD_CX = 0.5, FIELD_CY = 0.46;
 
 export interface Placed { idx: number; id: string; level: number; gx: number; gy: number; }
 
-// per-building sprite scale tweaks (multiplier on the footprint-sized base box)
+// Per-building sprite scale (multiplier on the footprint-sized base box). Tuned so most
+// buildings read at the same on-screen size as the 2×2 stockpile: 1×1 buildings need a
+// larger multiplier to match, farm is a touch bigger, granary a touch smaller, and the
+// town hall (3×3) is the clear giant.
 const SCALE: Record<string, number> = {
-  hovel: 0.5, farm: 1.15, granary: 0.85, stockpile: 0.85, woodcutters_lodge: 0.75,
+  // 1×1 buildings, sized up to match the stockpile baseline
+  hovel: 1.28, woodcutters_lodge: 1.28, quarry: 1.28, windmill: 1.28, iron_mine: 1.28,
+  farm: 1.44,
+  // 2×2 buildings at the stockpile baseline
+  stockpile: 0.85, granary: 0.78,
+  chapel: 0.85, tavern: 0.85, marketplace: 0.85, scholars_hall: 0.85, university: 0.85,
+  warehouse: 0.85, barracks: 0.85, archery_range: 0.85, blacksmith: 0.85, siege_workshop: 0.85,
+  // the town hall is the biggest building in the village
+  town_hall: 1.14,
 };
 
 interface Cfg { wall: string; wallDark: string; roof: string; roofDark: string; h: number; roofH: number; flag?: boolean; round?: boolean; }
