@@ -5,7 +5,7 @@ import { isBuildingUnlocked } from "../../sim/effects";
 import { playerDefensePower } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { IsoBoard, type Placed } from "../IsoBoard";
+import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
 
 // The castle as a scenic, designable defence space: lay walls, towers and the keep on the
@@ -31,9 +31,10 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
 
   const buildable = buildingDefs.filter((d) => d.category === "fortification" && isBuildingUnlocked(d.id, mods));
   const queue = state.buildQueue.filter((o) => !isVillageBuilding(o.building));
+  const fb = boardSize(cols, rows);
 
   return (
-    <div className="vscene">
+    <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
       <PanZoom fill initialScale={1}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_castle.png" fill
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}

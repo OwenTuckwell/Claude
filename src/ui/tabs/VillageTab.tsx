@@ -4,7 +4,7 @@ import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuildin
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
-import { IsoBoard, type Placed } from "../IsoBoard";
+import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
 import type { BuildingDef } from "../../sim/types";
 
@@ -26,9 +26,10 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
     .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
 
   const queue = state.buildQueue.filter((o) => isVillageBuilding(o.building));
+  const fb = boardSize(cols, rows);
 
   return (
-    <div className="vscene">
+    <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
       <PanZoom fill initialScale={1}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill field={{ scale: 0.984, cx: 0.452, cy: 0.491 }}
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}

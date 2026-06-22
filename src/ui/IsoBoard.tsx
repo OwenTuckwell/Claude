@@ -8,6 +8,14 @@ import { footprint } from "../sim/sim";
 
 const TW = 62, TH = 31;            // tile width/height (2:1 dimetric)
 const PAD = 16, HEADROOM = 64;
+
+/** The board's intrinsic viewBox size for a grid — used to size the scene frame so it hugs
+ *  the content (no letterbox) while keeping the meet-fit grid calibration valid. */
+export function boardSize(cols: number, rows: number): { w: number; h: number } {
+  const minSx = (0 - (rows - 1)) * (TW / 2), maxSx = (cols - 1) * (TW / 2);
+  const maxSy = (cols - 1 + rows - 1) * (TH / 2);
+  return { w: (maxSx - minSx) + TW + PAD * 2, h: maxSy + TH + HEADROOM + PAD * 2 };
+}
 // The playfield (grid + buildings) is scaled & centred onto the painted platform in the
 // background art. Tune these to sit the buildable diamond on the meadow: SCALE shrinks the
 // field to fit the platform; CX/CY are the platform centre as a fraction of the art.

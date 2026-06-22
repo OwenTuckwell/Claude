@@ -76,14 +76,16 @@ h1, h2, h3, .card h3 { font-family: var(--display); letter-spacing: 0.2px; }
 .happy { font-weight: 700; white-space: nowrap; }
 .happy.pos { color: var(--good); } .happy.neg { color: var(--bad); }
 
-/* the stage holds the active place; the rail sits to its right */
-.stage { position: relative; flex: 1; min-width: 0; overflow: hidden; margin: 6px; border-radius: 10px;
-  border: 2px solid var(--line2); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 4px 14px rgba(0,0,0,0.45); }
+/* the stage centres the active place; the dragons backdrop shows around the framed scene */
+.stage { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; padding: 8px; }
 .stage-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 10px; }
 
-/* full-screen isometric scene */
-.vscene { position: absolute; inset: 0; }
-.vscene .isoboard { width: 100%; height: 100%; }
+/* the scene is framed to its own aspect so the painting fits the border exactly */
+.vscene { position: relative; max-width: 100%; max-height: 100%; overflow: hidden;
+  border: 2px solid var(--line2); border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 6px 18px rgba(0,0,0,0.5); }
+.vscene .isoboard, .vscene .realm-svg { width: 100%; height: 100%; }
 .scene-chip { position: absolute; z-index: 6; background: rgba(20,14,6,0.6); color: #f3e8cf; border: 1px solid var(--line2);
   border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 700; font-family: var(--display); }
 .scene-chip.tl { top: 8px; left: 8px; }
