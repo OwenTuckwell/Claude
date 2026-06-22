@@ -237,6 +237,7 @@ button.ghost:active { transform: translateY(1px); }
 
 /* realm map markers (overlaid on the SVG) */
 .realm-svg { background: linear-gradient(135deg, #356084, #3f6f8c, #356084); background-size: 220% 220%; animation: sea 14s ease-in-out infinite; }
+.realm-svg text { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.75)); }
 @keyframes sea { 0%,100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
 .keep-mark { position: absolute; transform: translate(-50%, -50%); font-size: 16px; line-height: 1; cursor: pointer; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); transition: opacity 0.4s; }
 .keep-mark.me { cursor: default; font-size: 20px; animation: bob 3.5s ease-in-out infinite; }

@@ -92,7 +92,7 @@ export function App() {
         <div className="stage">
           {scene === "village" && <VillageTab state={state} mods={mods} dispatch={dispatch} />}
           {scene === "castle" && <CastleTab state={state} mods={mods} dispatch={dispatch} />}
-          {scene === "world" && <div className="stage-scroll"><WorldTab state={state} dispatch={dispatch} /></div>}
+          {scene === "world" && <WorldTab state={state} dispatch={dispatch} />}
         </div>
 
         {/* right-hand navigation rail */}
