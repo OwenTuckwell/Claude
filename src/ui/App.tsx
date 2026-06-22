@@ -119,7 +119,7 @@ export function App() {
         {/* pop-out panel drawer */}
         {panel && (
           <div className="drawer-scrim" onClick={() => setPanel(null)}>
-            <aside className="drawer" onClick={(e) => e.stopPropagation()}>
+            <aside className={"drawer" + (panel === "research" ? " full" : "")} onClick={(e) => e.stopPropagation()}>
               <div className="drawer-head">
                 <h3>{PANEL_TITLE[panel]}</h3>
                 <button className="ghost" onClick={() => setPanel(null)}>✕</button>
