@@ -14,6 +14,7 @@ import { MilitaryTab } from "./tabs/MilitaryTab";
 import { WorldTab } from "./tabs/WorldTab";
 import { ChronicleTab } from "./tabs/ChronicleTab";
 import { RenownTab } from "./tabs/RenownTab";
+import { Toasts } from "./Toasts";
 import { bannerInfo } from "../sim/renown";
 
 // Navigation model: Village / Castle / Map are full-screen "places" you travel between via
@@ -80,6 +81,8 @@ export function App() {
         </div>
 
         {error && <div className="error">{error}</div>}
+
+        <Toasts log={state.log} />
 
         <div className="body">
         {/* left-hand resource rail */}
