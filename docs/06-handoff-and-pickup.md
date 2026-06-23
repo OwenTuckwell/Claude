@@ -30,7 +30,8 @@ what's actually live. Save schema is at **v13**. Tests: **36 passing** (`npm tes
 | Tap/market scaling (rank-scaled + soft cap) | ✅ | partial (market is the early engine; explicit J scaling pending) | Appendix J |
 | Spatial breach-lane siege resolution | ✅ | ❌ not coded (castle layout designed, resolver still aggregate) | Appendix L |
 | Politics (parishes/sheriffs) · steward boosts | ✅ | ❌ not coded | Appendix M |
-| Onboarding / tutorial | ✅ | ❌ not coded | Appendix P |
+| **Event notifications** — toast pop-ups for attacks / build / train / victory | ✅ | ✅ | — |
+| **Onboarding** — ambient skippable "Getting started" checklist | ✅ | ✅ | Appendix P |
 | Procedural land-gen + name pool | ✅ | ⚙️ generator exists (`tools/genworld.py`) | Appendix E, N |
 
 > Castle is a **first pass** (defence + layout designer). The deeper Appendix A/L castle
