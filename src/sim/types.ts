@@ -2,8 +2,8 @@
 // NOTE: this folder must never import React or any presentation code — it is the
 // portable, deterministic game core (see docs/03-technical-architecture.md).
 
-export type ResourceId = "food" | "wood" | "stone" | "iron" | "gold" | "rp" | "token";
-export const RESOURCE_IDS: ResourceId[] = ["food", "wood", "stone", "iron", "gold", "rp", "token"];
+export type ResourceId = "food" | "wood" | "stone" | "iron" | "gold" | "rp" | "token" | "renown";
+export const RESOURCE_IDS: ResourceId[] = ["food", "wood", "stone", "iron", "gold", "rp", "token", "renown"];
 
 export type RationLevel = "half" | "normal" | "generous" | "double";
 export type BuildingCategory =

@@ -8,6 +8,7 @@ export const RESOURCE_META: Record<ResourceId, { label: string; icon: string }> 
   gold: { label: "Gold", icon: "🪙" },
   rp: { label: "Research", icon: "📜" },
   token: { label: "Tokens", icon: "🎟️" },
+  renown: { label: "Renown", icon: "🏅" },
 };
 
 export const BUILDING_ICONS: Record<string, string> = {

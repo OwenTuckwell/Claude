@@ -160,7 +160,7 @@ describe("commands", () => {
   });
 
   it("rejects unaffordable actions", () => {
-    const s: GameState = { ...fresh(), resources: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0 } };
+    const s: GameState = { ...fresh(), resources: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0, renown: 0 } };
     expect(applyCommand(s, { type: "build", building: "barracks", instanceIndex: null }).result.ok).toBe(false);
   });
 

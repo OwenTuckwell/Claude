@@ -2,7 +2,9 @@
 // reads. Research and the [Later] boost system share this typed-effect vocabulary, so
 // boosts will plug in here with no new sim plumbing (docs/03 §4).
 import { research as researchDefs, researchById } from "./content";
+import { bannerTier, renownPerks } from "./renown";
 import type { GameState } from "./types";
+import { RESOURCE_IDS } from "./types";
 
 // Idle (passive) income is gated by the Stewardship research: you collect this fraction of
 // your buildings' nominal output. Starts low so the early game leans on the tap-market.
@@ -71,6 +73,13 @@ export function computeModifiers(state: GameState): Modifiers {
       }
     }
   }
+  // Banner Rank (Renown) perks stack on top of research.
+  const pk = renownPerks(bannerTier(state.resources.renown ?? 0));
+  m.happinessFlat += pk.happiness;
+  m.idleIncomePct += pk.idlePct;
+  m.buildTimePct += pk.buildTimePct;
+  for (const r of RESOURCE_IDS) m.storageCapPct[r] = (m.storageCapPct[r] ?? 0) + pk.storagePct;
+
   m.idleIncomePct = Math.min(IDLE_INCOME_MAX, m.idleIncomePct);
   return m;
 }

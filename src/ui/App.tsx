@@ -13,12 +13,14 @@ import { ResearchTab } from "./tabs/ResearchTab";
 import { MilitaryTab } from "./tabs/MilitaryTab";
 import { WorldTab } from "./tabs/WorldTab";
 import { ChronicleTab } from "./tabs/ChronicleTab";
+import { RenownTab } from "./tabs/RenownTab";
+import { bannerInfo } from "../sim/renown";
 
 // Navigation model: Village / Castle / Map are full-screen "places" you travel between via
 // the right-hand rail; Tech / Market / Army / Log slide out as pop-out panels over the
 // current place. Landscape-first (portrait shows a rotate prompt).
 type Scene = "village" | "castle" | "world";
-type Panel = "research" | "market" | "military" | "chronicle" | "settings";
+type Panel = "research" | "market" | "military" | "renown" | "chronicle" | "settings";
 
 const SCENES: { id: Scene; icon: string; label: string }[] = [
   { id: "village", icon: "🛖", label: "Village" },
@@ -29,11 +31,12 @@ const PANELS: { id: Panel; icon: string; label: string }[] = [
   { id: "research", icon: "📜", label: "Tech" },
   { id: "market", icon: "🎟️", label: "Market" },
   { id: "military", icon: "⚔️", label: "Army" },
+  { id: "renown", icon: "🏅", label: "Renown" },
   { id: "chronicle", icon: "📖", label: "Log" },
   { id: "settings", icon: "⚙️", label: "Menu" },
 ];
 const PANEL_TITLE: Record<Panel, string> = {
-  research: "📜 Research", market: "🎟️ Market", military: "⚔️ Army", chronicle: "📖 Chronicle", settings: "⚙️ Menu",
+  research: "📜 Research", market: "🎟️ Market", military: "⚔️ Army", renown: "🏅 Renown", chronicle: "📖 Chronicle", settings: "⚙️ Menu",
 };
 
 export function App() {
@@ -61,7 +64,7 @@ export function App() {
               <div className="res" key={r}>
                 <span className="ic">{RESOURCE_META[r].icon}</span>
                 <span className="val">{fmt(state.resources[r])}</span>
-                {r !== "gold" && r !== "rp" && r !== "token" && <span className="muted cap">/{fmt(caps[r])}</span>}
+                {r !== "gold" && r !== "rp" && r !== "token" && r !== "renown" && <span className="muted cap">/{fmt(caps[r])}</span>}
                 <span className={"rate " + (net[r] >= 0 ? "pos" : "neg")}>{fmtRate(net[r])}</span>
               </div>
             ))}
@@ -82,6 +85,7 @@ export function App() {
             </label>
             <span className={"happy " + (h >= 0 ? "pos" : "neg")}>{h >= 0 ? "🙂" : "☹️"} {h}</span>
             <span className="pop" title="Your rank, by land held">👑 {realmInfo(state).rank}</span>
+            <span className="pop" title="Your banner rank, by renown">🏅 {bannerInfo(state.resources.renown ?? 0).title}</span>
           </div>
         </div>
 
@@ -128,6 +132,7 @@ export function App() {
                 {panel === "research" && <ResearchTab state={state} mods={mods} dispatch={dispatch} />}
                 {panel === "market" && <MarketTab state={state} mods={mods} dispatch={dispatch} />}
                 {panel === "military" && <MilitaryTab state={state} mods={mods} dispatch={dispatch} />}
+                {panel === "renown" && <RenownTab state={state} />}
                 {panel === "chronicle" && <ChronicleTab state={state} />}
                 {panel === "settings" && (
                   <div className="list">

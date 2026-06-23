@@ -5,6 +5,7 @@ import { balance, buildingById, troopById, aiById, world, researchById, factions
 import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
+import { bannerTier, renownPerks } from "./renown";
 import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
 import type {
   BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
@@ -12,7 +13,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -21,7 +22,10 @@ export function townHallLevel(s: GameState): number {
   for (const b of s.buildings) if (b.id === "town_hall") lvl = Math.max(lvl, b.level);
   return lvl;
 }
-const MAX_BUILD_SLOTS = 2;
+/** Concurrent construction slots — grows with your Banner Rank (Renown). */
+export function maxBuildSlots(s: GameState): number {
+  return renownPerks(bannerTier(s.resources.renown ?? 0)).buildSlots;
+}
 
 // ---------- construction helpers ----------
 
@@ -190,7 +194,7 @@ export function happiness(s: GameState, mods: Modifiers): number {
 
 /** Net resource change per tick at current settings (for the HUD). */
 export function netProduction(s: GameState, mods: Modifiers): Record<ResourceId, number> {
-  const net: Record<ResourceId, number> = { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0 };
+  const net: Record<ResourceId, number> = { food: 0, wood: 0, stone: 0, iron: 0, gold: 0, rp: 0, token: 0, renown: 0 };
   const st = staffing(s);
   for (const b of s.buildings) {
     const def = buildingById[b.id];
@@ -301,7 +305,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
   }
 
   // Build queue (sequential, MAX_BUILD_SLOTS run concurrently).
-  for (let i = 0; i < Math.min(MAX_BUILD_SLOTS, s.buildQueue.length); i++) {
+  for (let i = 0; i < Math.min(maxBuildSlots(s), s.buildQueue.length); i++) {
     const o = s.buildQueue[i];
     if (o.startedTick === null) o.startedTick = s.tick;
   }
@@ -373,17 +377,22 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       s.rngState = outcome.rngState;
       let loot: ResourceMap = {};
       if (outcome.victory) {
+        const diff = aiById[def.ownerId]?.difficulty ?? 1;
         if (def.isCapital) {
           // capital falls: faction is broken, its lands revert to neutral
           const fallenId = def.ownerId;
           for (const k of Object.keys(s.tileOwner)) if (s.tileOwner[k] === fallenId) s.tileOwner[k] = "neutral";
           s.tileOwner[tileKey(x, y)] = "player";
           loot = { ...(aiById[fallenId]?.loot ?? {}) };
-          log(s, `${aiById[fallenId]?.name ?? "A rival"} has fallen! Their capital is yours.`, "war");
+          const r = 200 + diff * 40;
+          s.resources.renown += r;
+          log(s, `${aiById[fallenId]?.name ?? "A rival"} has fallen! Their capital is yours. +${r} renown.`, "war");
         } else {
           s.tileOwner[tileKey(x, y)] = "player";
           loot = tileLoot(s, def.ownerId);
-          log(s, `You claimed the land at (${x},${y}).`, "war");
+          const r = 10 + diff * 5;
+          s.resources.renown += r;
+          log(s, `You claimed the land at (${x},${y}). +${r} renown.`, "war");
         }
       } else {
         log(s, `Your conquest at (${x},${y}) was thrown back.`, "bad");
@@ -422,7 +431,8 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       };
       s.reports.unshift(report);
       if (s.reports.length > 30) s.reports.length = 30;
-      log(s, outcome.victory ? `Victory at ${ai.name}!` : `Assault on ${ai.name} repelled.`,
+      if (outcome.victory) s.resources.renown += 8 + ai.difficulty * 4;
+      log(s, outcome.victory ? `Victory at ${ai.name}! +${8 + ai.difficulty * 4} renown.` : `Assault on ${ai.name} repelled.`,
         outcome.victory ? "war" : "bad");
       const survivors = outcome.attackerSurvivors;
       const anyLeft = Object.values(survivors).some((c) => c > 0);
@@ -487,7 +497,7 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       const def = buildingById[cmd.building];
       if (!def) return fail("Unknown building.");
       if (!isBuildingUnlocked(def.id, mods)) return fail("Not yet researched.");
-      if (s.buildQueue.length >= MAX_BUILD_SLOTS + 2) return fail("Build queue full.");
+      if (s.buildQueue.length >= maxBuildSlots(s) + 2) return fail("Build queue full.");
       const idx = cmd.instanceIndex ?? null;
       let targetLevel = 1;
       if (idx !== null) {
