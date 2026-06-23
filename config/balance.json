@@ -50,6 +50,8 @@
     "tileUpkeepGold": 0.03,
     "freeTiles": 10,
     "sprawlHappinessPer10": 1,
-    "protectedTiles": 8
+    "protectedTiles": 8,
+    "maxAiTilePct": 0.1,
+    "aiVsAiMargin": 1.35
   }
 }

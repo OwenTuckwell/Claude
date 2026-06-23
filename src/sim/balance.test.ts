@@ -38,6 +38,12 @@ describe("balance harness — long-run invariants", () => {
     expect(s.population).toBeGreaterThanOrEqual(0);
     // protected heartland: an idle player keeps their starting region intact
     expect(ownedCount(s.tileOwner, "player")).toBeGreaterThanOrEqual(startTiles);
+    // anti-runaway: no single rival snowballs toward the Crown (stays player-focused)
+    const aiCounts: Record<string, number> = {};
+    for (const o of Object.values(s.tileOwner)) if (o !== "neutral" && o !== "player") aiCounts[o] = (aiCounts[o] ?? 0) + 1;
+    const totalLand = Object.keys(s.tileOwner).length;
+    const maxAiShare = Math.max(0, ...Object.values(aiCounts)) / totalLand;
+    expect(maxAiShare).toBeLessThan(0.25);            // well under the 0.33 Crown threshold
   });
 
   it("an auto-economy player grows steadily over two weeks", () => {

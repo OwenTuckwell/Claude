@@ -116,6 +116,8 @@ export interface Balance {
     freeTiles: number;            // tiles before upkeep & sprawl penalties bite
     sprawlHappinessPer10: number; // happiness lost per 10 tiles beyond the allowance
     protectedTiles: number;       // AI won't seize your land while you hold <= this (safe heartland)
+    maxAiTilePct: number;         // a single AI faction won't expand past this share of land (anti-runaway)
+    aiVsAiMargin: number;         // strength edge an AI needs to seize a rival's border tile
   };
 }
 

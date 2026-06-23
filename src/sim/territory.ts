@@ -171,6 +171,12 @@ export function aiTurn(state: GameState): void {
     const o = state.tileOwner[key(t.x, t.y)];
     if (o && o !== "neutral") (ownedTiles[o] ??= []).push(t);
   }
+  // Anti-runaway: no single rival may expand past this share of the map, and rival capitals
+  // can never be taken by AI (only by the player) — so the world churns but never collapses
+  // into one mega-faction. Keeps the game player-focused.
+  const aiTileCap = Math.max(8, totalLand() * balance.conquest.maxAiTilePct);
+  const capitals = new Set(factions.map((f) => key(f.capital.x, f.capital.y)));
+  const tileCount = (id: string) => ownedTiles[id]?.length ?? 0;
   for (const f of factions) {
     if (f.isPlayer) continue;
     if (state.tileOwner[key(f.capital.x, f.capital.y)] !== f.id) continue; // defeated
@@ -181,13 +187,16 @@ export function aiTurn(state: GameState): void {
     const mine = ownedTiles[f.id] ?? [];
     if (mine.length === 0) continue;
 
-    // candidate player tiles bordering this faction (never the capital)
+    // candidate border tiles: player (never the capital), neutral, and rival-held
     const playerBorder: { x: number; y: number }[] = [];
     const neutralBorder: { x: number; y: number }[] = [];
+    const rivalBorder: { x: number; y: number; owner: string }[] = [];
     for (const t of mine) for (const n of neighbors(t.x, t.y)) {
-      const o = state.tileOwner[key(n.x, n.y)];
-      if (o === "player" && key(n.x, n.y) !== playerCap) playerBorder.push(n);
+      const nk = key(n.x, n.y);
+      const o = state.tileOwner[nk];
+      if (o === "player" && nk !== playerCap) playerBorder.push(n);
       else if (o === "neutral") neutralBorder.push(n);
+      else if (o && o !== f.id && o !== "player" && !capitals.has(nk)) rivalBorder.push({ ...n, owner: o });
     }
 
     if (!playerProtected && playerBorder.length > 0 && roll(state) < info.willing) {
@@ -213,6 +222,23 @@ export function aiTurn(state: GameState): void {
       if (state.log.length > 60) state.log.length = 60;
       if (!held) continue;
     }
+    // Rivals at/over the cap stop expanding — they can still be attacked, never snowball.
+    if (tileCount(f.id) >= aiTileCap) continue;
+
+    // AI-vs-AI: skirmish a rival's border tile, preferring an over-cap (dominant) neighbour
+    // so the biggest faction gets pecked back down. Capitals excluded → no eliminations.
+    if (rivalBorder.length > 0) {
+      const overCap = rivalBorder.filter((r) => tileCount(r.owner) >= aiTileCap);
+      const pool = overCap.length > 0 ? overCap : rivalBorder;
+      const tgt = pool[Math.floor(roll(state) * pool.length)];
+      const atk = (state.factionStrength[f.id] ?? 8) * (0.8 + roll(state) * 0.5);
+      const def = (state.factionStrength[tgt.owner] ?? 8) * balance.conquest.aiVsAiMargin;
+      if (atk > def) {
+        state.tileOwner[key(tgt.x, tgt.y)] = f.id;
+        if ((ownedTiles[tgt.owner] = (ownedTiles[tgt.owner] ?? []).filter((t) => !(t.x === tgt.x && t.y === tgt.y))).length === 0) { /* shrunk */ }
+      }
+    }
+
     // expand into neutral land (economic rivals grab more per turn)
     for (let e = 0; e < info.expand && neutralBorder.length > 0; e++) {
       const idx = Math.floor(roll(state) * neutralBorder.length);
