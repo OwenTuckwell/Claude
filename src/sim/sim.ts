@@ -6,14 +6,14 @@ import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, 
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
 import { bannerTier, renownPerks, BANNER_RANKS } from "./renown";
-import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
+import { aiTurn, maybeSpawnRival, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
 import type {
   BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 14;  // v14: huge 120x68 world, 50 rivals, player in the SW corner
+export const SCHEMA_VERSION = 15;  // v15: 30 active rivals at start; dormant rivals awaken over time
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -257,6 +257,7 @@ export function createInitialState(seed = 12345): GameState {
     log: [{ tick: 0, text: "Your village is founded. Long may it stand.", kind: "info" }],
     nextId: 1,
     lastAiTurn: 0,
+    lastSpawnTick: 0,
   };
 }
 
@@ -464,8 +465,10 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     return false;
   });
 
-  // Rival factions expand and raid the player's borders on an interval.
+  // Rival factions expand, skirmish each other, and raid the player's borders on an interval.
   aiTurn(s);
+  // New rivals rise onto the map over time (rising difficulty, scaled to player progress).
+  maybeSpawnRival(s);
 
   s.tick += 1;
 }

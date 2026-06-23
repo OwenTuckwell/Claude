@@ -118,6 +118,8 @@ export interface Balance {
     protectedTiles: number;       // AI won't seize your land while you hold <= this (safe heartland)
     maxAiTilePct: number;         // a single AI faction won't expand past this share of land (anti-runaway)
     aiVsAiMargin: number;         // strength edge an AI needs to seize a rival's border tile
+    startingActiveRivals: number; // rivals active at game start; the rest awaken over time
+    spawnIntervalTicks: number;   // how often a dormant rival rises onto the map
   };
 }
 
@@ -217,6 +219,7 @@ export interface GameState {
   log: LogEntry[];
   nextId: number;
   lastAiTurn: number;
+  lastSpawnTick: number;
 }
 
 export type Command =

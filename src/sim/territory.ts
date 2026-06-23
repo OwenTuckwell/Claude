@@ -31,7 +31,12 @@ function neighbors(x: number, y: number) {
 export function initOwnership(): Record<string, string> {
   const owner: Record<string, string> = {};
   for (const t of landTiles()) owner[key(t.x, t.y)] = "neutral";
+  // Only the lowest-difficulty (nearest) rivals start active; the rest stay dormant and
+  // awaken over time (maybeSpawnRival) so the world ratchets up as the game progresses.
+  const rivals = factions.filter((f) => !f.isPlayer).slice().sort((a, b) => a.difficulty - b.difficulty);
+  const active = new Set<string>(rivals.slice(0, balance.conquest.startingActiveRivals).map((f) => f.id));
   for (const f of factions) {
+    if (!f.isPlayer && !active.has(f.id)) continue; // dormant rival — not on the map yet
     owner[key(f.capital.x, f.capital.y)] = f.id;
     for (const n of neighbors(f.capital.x, f.capital.y))
       if (owner[key(n.x, n.y)] === "neutral") owner[key(n.x, n.y)] = f.id;
@@ -196,7 +201,7 @@ export function aiTurn(state: GameState): void {
       const o = state.tileOwner[nk];
       if (o === "player" && nk !== playerCap) playerBorder.push(n);
       else if (o === "neutral") neutralBorder.push(n);
-      else if (o && o !== f.id && o !== "player" && !capitals.has(nk)) rivalBorder.push({ ...n, owner: o });
+      else if (o && o !== f.id && o !== "player") rivalBorder.push({ ...n, owner: o });
     }
 
     if (!playerProtected && playerBorder.length > 0 && roll(state) < info.willing) {
@@ -226,16 +231,28 @@ export function aiTurn(state: GameState): void {
     if (tileCount(f.id) >= aiTileCap) continue;
 
     // AI-vs-AI: skirmish a rival's border tile, preferring an over-cap (dominant) neighbour
-    // so the biggest faction gets pecked back down. Capitals excluded → no eliminations.
+    // so the biggest faction gets pecked back down. Capitals can fall (harder) — the loser
+    // is eliminated and its land reverts to neutral, freeing it for re-conquest / a respawn.
     if (rivalBorder.length > 0) {
       const overCap = rivalBorder.filter((r) => tileCount(r.owner) >= aiTileCap);
       const pool = overCap.length > 0 ? overCap : rivalBorder;
       const tgt = pool[Math.floor(roll(state) * pool.length)];
+      const nk = key(tgt.x, tgt.y);
+      const isCapital = capitals.has(nk);
       const atk = (state.factionStrength[f.id] ?? 8) * (0.8 + roll(state) * 0.5);
-      const def = (state.factionStrength[tgt.owner] ?? 8) * balance.conquest.aiVsAiMargin;
+      const def = (state.factionStrength[tgt.owner] ?? 8) * balance.conquest.aiVsAiMargin * (isCapital ? 2 : 1);
       if (atk > def) {
-        state.tileOwner[key(tgt.x, tgt.y)] = f.id;
-        if ((ownedTiles[tgt.owner] = (ownedTiles[tgt.owner] ?? []).filter((t) => !(t.x === tgt.x && t.y === tgt.y))).length === 0) { /* shrunk */ }
+        if (isCapital) {
+          const fallen = tgt.owner;
+          for (const t of (ownedTiles[fallen] ?? [])) state.tileOwner[key(t.x, t.y)] = "neutral";
+          ownedTiles[fallen] = [];
+          state.tileOwner[nk] = f.id;
+          state.log.unshift({ tick: state.tick, text: `${factionById[fallen]?.name ?? "A rival"} has fallen to ${f.name}.`, kind: "war" });
+          if (state.log.length > 60) state.log.length = 60;
+        } else {
+          state.tileOwner[nk] = f.id;
+          ownedTiles[tgt.owner] = (ownedTiles[tgt.owner] ?? []).filter((t) => !(t.x === tgt.x && t.y === tgt.y));
+        }
       }
     }
 
@@ -246,6 +263,28 @@ export function aiTurn(state: GameState): void {
       state.tileOwner[key(g.x, g.y)] = f.id;
     }
   }
+}
+
+/** A dormant rival rises onto the map on an interval, keeping the world escalating (Wave 3).
+ *  Dormant = a faction not holding its capital (never-activated or previously eliminated) whose
+ *  capital tile is currently free. Awakens the lowest-difficulty available one — so rivals
+ *  appear in rising difficulty — with strength scaled to the player's progress so late
+ *  arrivals are real threats. Deterministic (no RNG). */
+export function maybeSpawnRival(state: GameState): void {
+  if (state.tick - state.lastSpawnTick < balance.conquest.spawnIntervalTicks) return;
+  state.lastSpawnTick = state.tick;
+  const dormant = factions.filter((f) => !f.isPlayer
+    && state.tileOwner[key(f.capital.x, f.capital.y)] === "neutral")
+    .sort((a, b) => a.difficulty - b.difficulty || (a.id < b.id ? -1 : 1));
+  const f = dormant[0];
+  if (!f) return;
+  state.tileOwner[key(f.capital.x, f.capital.y)] = f.id;
+  for (const n of neighbors(f.capital.x, f.capital.y))
+    if (state.tileOwner[key(n.x, n.y)] === "neutral") state.tileOwner[key(n.x, n.y)] = f.id;
+  const scaled = Math.min(220, f.difficulty * 8 + playerStrengthIndex(state) * 0.5);
+  state.factionStrength[f.id] = Math.max(state.factionStrength[f.id] ?? 0, scaled);
+  state.log.unshift({ tick: state.tick, text: `A new power rises in the realm: ${f.name}.`, kind: "war" });
+  if (state.log.length > 60) state.log.length = 60;
 }
 
 // ---- Fog of war (Phase 2) ----

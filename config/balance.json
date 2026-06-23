@@ -52,6 +52,8 @@
     "sprawlHappinessPer10": 1,
     "protectedTiles": 8,
     "maxAiTilePct": 0.1,
-    "aiVsAiMargin": 1.35
+    "aiVsAiMargin": 1.35,
+    "startingActiveRivals": 30,
+    "spawnIntervalTicks": 2880
   }
 }
