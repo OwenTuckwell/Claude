@@ -11,23 +11,19 @@ ship visible wins fast and tackle the big systems deliberately. Each item notes 
 
 ---
 
-## Wave 1 — Quick wins & polish (S, low risk) — *recommended first*
-Immediate feel improvements, mostly UI, no sim/save changes.
+## Wave 1 — Quick wins & polish ✅ DONE (commit 90c4f05)
+Immediate feel improvements, all UI, no sim/save changes.
 
-1. **Fix troop-count input** *(bug)* — in `MilitaryTab.tsx` the count is a controlled
-   number forced through `Math.max(1, …)`, so you can't clear the `0`/replace it (typing 25
-   → 250/025). Fix: hold the field as a free-text string, allow empty while editing, parse
-   to a number only on Train; select-all on focus. **S.**
-2. **Vineyard sprite +50%** — bump its per-building scale value. While there, sanity-check
-   the other new buildings' scales. **S.**
-3. **Sprite variety** — identical buildings look samey. Add deterministic per-instance
-   variation (horizontal flip and/or small scale/offset jitter keyed off the building's
-   position/index) so a row of farms isn't a clone stamp. Keep it subtle so lighting still
-   reads. **S–M, UI only.**
-4. **Build / march / scout timers** — the scene queue (top-right) shows *what's* in progress
-   but no countdown. Add a remaining-time readout + progress bar: builds have
-   `startedTick`+`durationTicks`; marches have `arriveTick`. Show "⏳ 2m left" + a bar on
-   each. **S–M, UI only.**
+1. ✅ **Fixed troop-count input** — `MilitaryTab` now holds the count as free text with
+   select-on-focus, so you can clear/retype it cleanly (no more stuck `0` / 250 / 025).
+2. ✅ **Vineyard sprite +50%** — bumped its `SCALE` to 1.5 in `IsoBoard`.
+3. ✅ **Sprite variety** — per-instance mirror (~half) + subtle scale jitter, keyed off
+   tile/index, so identical buildings no longer look stamped.
+4. ✅ **Build / march timers** — build queue and world marches show a live **real-time
+   countdown** (`fmtClock`) + progress bar; marches no longer show raw ticks.
+
+> Note (Wave 2): the map march **marker** still shows ⚔️ for scouts — give scouts the 🧭
+> icon + (later) a sprite there.
 
 ## Wave 2 — Scouting depth (M)
 Make recon a real, risk-bearing system (extends Appendix G).
@@ -82,11 +78,16 @@ deepens scouting (and pairs with the bigger map); Wave 4 (castle) is the largest
 piece and benefits from being done deliberately last. Happy to reorder — e.g. do the
 castle sooner if it's bugging you most.
 
-## Notes / open questions
-- **Map size & rival count:** how big? (e.g. ~60×90 with ~35 rivals?) And which corner for
-  the player start?
-- **New-rival cadence:** how often should fresh enemies appear, and a cap on total factions?
-- **Castle:** free-form per-tile wall placement (most flexible, most work) vs a few preset
-  wall "pieces" you rotate (simpler, still tactical)? Decide before Wave 4.
+## Decisions made
+- **Map size: HUGE — ~80×120 with ~50 rivals.** Because the painted backdrop (`bg_map`)
+  stays one image, the grid gets **smaller tiles** and the player **zooms in** (PanZoom
+  already supports this) to select them. Player starts in a **corner/edge**, not the centre.
+- **Castle walls: preset rotatable connecting pieces** (segments / corners / gates /
+  towers that snap together and are enclosure-aware) — better look + playability for the
+  effort than free-form per-tile painting.
+- **Sequence:** Wave 1 ✅ → Wave 3 (world) → Wave 2 (scouting) → Wave 4 (castle).
+
+## Still open (decide when we reach them)
+- **New-rival cadence:** how often fresh enemies appear, and a cap on total factions.
 - Determinism + `npm test` + `npm run build` after every change; bump `SCHEMA_VERSION` +
   extend `migrate()` whenever `GameState` shape changes.
