@@ -43,18 +43,19 @@ Make recon a real, risk-bearing system (extends Appendix G).
 ## Wave 3 — A living, bigger world (L) — *the big experience change*
 Directly addresses "map too small, enemies too close, not enough action."
 
-9. **Bigger, fuller map + player off-centre** — regenerate via `tools/genworld.py` at a
-   larger size with more rivals; **place the player in a corner/edge**, not the centre, so
-   there's a long conquest runway. (Generator change + regenerate `world.json`.) **M.**
-10. **Enemies fight each other** — AI factions contest neutral/border land with rivals (a
-    cheap abstract clash), so the map visibly churns without the player. **M, sim.**
-11. **New rivals appear over time, scaling with difficulty** — periodically spawn a fresh
-    faction on open land, with difficulty scaling to game progress / player strength, so it
-    never gets easy. (Dynamic factions — currently they're static from `world.json`; this
-    is the biggest sim change here.) **L, sim + save migration.**
-12. **Enemies keep growing** — ongoing `factionStrength` growth + occasional capital
-    fort/garrison upgrades, so left-alone rivals become real threats. **S–M (mostly tuning
-    existing growth).**
+9. ✅ **Bigger, fuller map + player off-centre** (commit d3876b9) — regenerated to
+   **120×68 (4× tiles), 50 rivals, player in the SW corner**; smaller tiles + zoom-to-select.
+   `aiTurn` optimised to a one-pass ownership index so 50 factions stay performant.
+10. ✅ **Enemies fight each other + anti-runaway** (commit d18740b) — rivals skirmish each
+    other's border tiles, **preferring to peck the biggest faction down**. Hard guards keep
+    it **player-focused, never a mega 1v1**: a per-faction tile cap (`maxAiTilePct`), and
+    **AI can never capture a capital** (only the player can), so no faction is eliminated /
+    snowballs. Harness asserts no rival nears the Crown.
+11. ⬜ **New rivals appear over time, scaling with difficulty** — periodically awaken a
+    fresh faction on open land, difficulty scaling to game progress. (Needs a dormant-pool
+    or dynamic-faction approach — the one remaining Wave 3 piece.) **L.**
+12. ✅ **Enemies keep growing** — `factionStrength` snowballs per archetype × difficulty each
+    AI turn (already live); the cap stops any one from running away.
 
 ## Wave 4 — Castle overhaul (L) — *"design matters"*
 The current castle is weak; make layout a real, satisfying system (Appendix A + L).
