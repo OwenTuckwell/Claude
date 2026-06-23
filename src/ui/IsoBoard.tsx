@@ -37,6 +37,8 @@ const SCALE: Record<string, number> = {
   warehouse: 0.85, barracks: 0.85, archery_range: 0.85, blacksmith: 0.85, siege_workshop: 0.85,
   // the town hall is the biggest building in the village
   town_hall: 1.14,
+  // newer buildings
+  vineyard: 1.5,
 };
 
 interface Cfg { wall: string; wallDark: string; roof: string; roofDark: string; h: number; roofH: number; flag?: boolean; round?: boolean; }
@@ -95,17 +97,22 @@ function Building({ cx, cy, id, level }: { cx: number; cy: number; id: string; l
 /** Renders a real PNG sprite (public/sprites/<id>.png) if present, sized to span the
  *  building's square footprint; otherwise the drawn vector building. cx is the block's
  *  centre x; cyBase is the front (bottom) corner-tile centre y; n is the footprint side. */
-function IsoBuilding({ cx, cyBase, id, level, n }: { cx: number; cyBase: number; id: string; level: number; n: number }) {
+function IsoBuilding({ cx, cyBase, id, level, n, vary = 0 }: { cx: number; cyBase: number; id: string; level: number; n: number; vary?: number }) {
   const [loaded, setLoaded] = useState(false);
   const sc = SCALE[id] ?? 1;
+  // Subtle per-instance variation so a row of identical buildings doesn't look stamped:
+  // mirror ~half of them and nudge the scale a touch. Deterministic from the tile/index.
+  const flip = vary % 2 === 1;
+  const jit = 1 + ((Math.abs(vary) % 5) - 2) * 0.03;   // 0.94 .. 1.06
   // box grows with footprint but keeps the tuned 1×1 size (n=1 → 1.8/1.2 TW, unchanged)
-  const w = TW * (0.9 * n + 0.9) * sc, h = TW * (0.6 * n + 0.6) * sc;
+  const w = TW * (0.9 * n + 0.9) * sc * jit, h = TW * (0.6 * n + 0.6) * sc * jit;
   return (
     <g>
       <ellipse cx={cx} cy={cyBase + TH * 0.18} rx={TW * 0.34 * n} ry={TH * 0.34 * n} fill="rgba(20,28,12,0.22)" />
       {!loaded && <Building cx={cx} cy={cyBase} id={id} level={level} />}
       <image href={`sprites/${id}.png`} x={cx - w / 2} y={cyBase + TH * 0.35 - h} width={w} height={h}
         preserveAspectRatio="xMidYMax meet" style={{ display: loaded ? "" : "none" }}
+        transform={flip ? `matrix(-1,0,0,1,${(2 * cx).toFixed(1)},0)` : undefined}
         onLoad={() => setLoaded(true)} onError={() => { /* keep vector */ }} />
     </g>
   );
@@ -218,7 +225,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, f
     items.push({
       key: `b${p.gx}-${p.gy}`, y: cyBase,
       el: <g key={`b${p.gx}-${p.gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
-        <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} />
+        <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} vary={p.gx * 31 + p.gy * 7 + p.idx} />
       </g>,
     });
   }

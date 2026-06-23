@@ -8,7 +8,8 @@ import type { ResourceMap } from "../../sim/types";
 const ROLE_ICON: Record<string, string> = { infantry: "🛡️", ranged: "🏹", cavalry: "🐎", siege: "🪓" };
 
 export function MilitaryTab({ state, mods, dispatch }: TabProps) {
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  // Held as free text so the field can be cleared/retyped cleanly; parsed to a count on use.
+  const [counts, setCounts] = useState<Record<string, string>>({});
   const garrison = Object.entries(state.troops).filter(([, c]) => c > 0);
 
   return (
@@ -37,7 +38,8 @@ export function MilitaryTab({ state, mods, dispatch }: TabProps) {
         <h3>Train troops</h3>
         <div className="list">
           {troopDefs.filter((t) => isTroopUnlocked(t.id, mods)).map((def) => {
-            const n = counts[def.id] ?? 1;
+            const raw = counts[def.id] ?? "1";
+            const n = Math.max(1, Math.floor(Number(raw) || 1));
             const cost: ResourceMap = {};
             for (const k of Object.keys(def.cost) as (keyof ResourceMap)[]) cost[k] = (def.cost[k] ?? 0) * n;
             const reqMissing = Object.entries(def.requires?.buildings ?? {}).find(([b, l]) => !state.buildings.some((x) => x.id === b && x.level >= l));
@@ -50,8 +52,9 @@ export function MilitaryTab({ state, mods, dispatch }: TabProps) {
                   {reqMissing && <div className="cost">needs {buildingById[reqMissing[0]]?.name} L{reqMissing[1]}</div>}
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <input className="num" type="number" min={1} value={n}
-                    onChange={(e) => setCounts({ ...counts, [def.id]: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
+                  <input className="num" type="number" min={1} value={raw}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setCounts({ ...counts, [def.id]: e.target.value })} />
                   <br />
                   <button className="act" style={{ marginTop: 4 }} disabled={!!reqMissing || !canAfford(state, cost)}
                     onClick={() => dispatch({ type: "train", troop: def.id, count: n })}>Train</button>

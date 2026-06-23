@@ -98,6 +98,7 @@ h1, h2, h3, .card h3 { font-family: var(--display); letter-spacing: 0.2px; }
 .scene-queue { position: absolute; top: 8px; right: 8px; z-index: 6; width: 188px; display: grid; gap: 5px; }
 .sq-item { background: rgba(20,14,6,0.64); border: 1px solid var(--line2); border-radius: 8px; padding: 5px 7px; font-size: 11px; }
 .sq-item .queue-item span { color: #f3e8cf; }
+.sq-time { font-size: 10px; color: #cdbb95; margin-top: 3px; }
 .scene-actions { position: absolute; left: 10px; bottom: 10px; z-index: 6; display: flex; align-items: center; gap: 8px; }
 .scene-hint { font-size: 11px; color: #ece0c4; background: rgba(20,14,6,0.5); padding: 3px 7px; border-radius: 6px; }
 

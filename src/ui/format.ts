@@ -32,6 +32,16 @@ export function fmtRate(n: number): string {
   return (r >= 0 ? "+" : "") + r;
 }
 
+/** A live countdown in real seconds → "Xs" / "Mm SSs" / "Hh MMm". */
+export function fmtClock(realSec: number): string {
+  const s = Math.max(0, Math.ceil(realSec));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${(s % 60).toString().padStart(2, "0")}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${(m % 60).toString().padStart(2, "0")}m`;
+}
+
 export function fmtDuration(ticks: number, tickLengthSec: number): string {
   const totalSec = ticks * tickLengthSec;
   if (totalSec < 60) return `${Math.round(totalSec)}s`;

@@ -3,7 +3,8 @@ import { buildings as buildingDefs, buildingById, balance } from "../../sim/cont
 import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding, placementAllowed, firstFreeVillageCell, canPlaceAt } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
-import { fmtDuration, BUILDING_ICONS } from "../format";
+import { fmtDuration, fmtClock, BUILDING_ICONS } from "../format";
+import { TICKS_PER_REAL_SECOND } from "../../host/persistence";
 import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
 import { bannerTier, BANNER_RANKS } from "../../sim/renown";
@@ -78,6 +79,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
                   <button className="ghost" onClick={() => dispatch({ type: "cancelBuild", queueIndex: i })}>✕</button>
                 </div>
                 <div className="bar"><i style={{ width: pct + "%" }} /></div>
+                <div className="sq-time">{o.startedTick === null ? "⏳ queued" : "⏳ " + fmtClock(Math.max(0, o.startedTick + o.durationTicks - state.tick) / TICKS_PER_REAL_SECOND)}</div>
               </div>
             );
           })}

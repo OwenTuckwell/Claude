@@ -4,7 +4,8 @@ import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile, buildExpl
 import { archetypeInfoFor } from "../../sim/rivals";
 import { computeModifiers } from "../../sim/effects";
 import { type Command, type GameState } from "../../sim/types";
-import { fmtDuration } from "../format";
+import { fmtDuration, fmtClock } from "../format";
+import { TICKS_PER_REAL_SECOND } from "../../host/persistence";
 import { PanZoom } from "../PanZoom";
 
 export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: Command) => void }) {
@@ -101,14 +102,19 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
 
       {state.marches.length > 0 && (
         <div className="scene-queue">
-          {state.marches.map((m) => (
-            <div key={m.id} className="sq-item">
-              <div className="queue-item" style={{ borderBottom: "none", padding: 0 }}>
-                <span>{m.kind === "scout" ? "🧭 " : m.kind === "conquer" ? "🚩 " : "⚔️ "}{m.phase === "outbound" ? "→ " : "← "}{m.targetName}</span>
-                <span>{Math.max(0, m.arriveTick - state.tick)}t</span>
+          {state.marches.map((m) => {
+            const remain = Math.max(0, m.arriveTick - state.tick);
+            const pct = m.travelTicks ? Math.min(100, Math.max(0, (1 - remain / m.travelTicks) * 100)) : 0;
+            return (
+              <div key={m.id} className="sq-item">
+                <div className="queue-item" style={{ borderBottom: "none", padding: 0 }}>
+                  <span>{m.kind === "scout" ? "🧭 " : m.kind === "conquer" ? "🚩 " : "⚔️ "}{m.phase === "outbound" ? "→ " : "← "}{m.targetName}</span>
+                </div>
+                <div className="bar"><i style={{ width: pct + "%" }} /></div>
+                <div className="sq-time">⏳ {fmtClock(remain / TICKS_PER_REAL_SECOND)} · {m.phase === "outbound" ? "outbound" : "returning"}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
