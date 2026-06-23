@@ -57,18 +57,8 @@ export function App() {
       </div>
 
       <div className="game" style={{ backgroundImage: "linear-gradient(rgba(14,15,17,0.5), rgba(14,15,17,0.6)), url(sprites/bg_app.png)", backgroundSize: "cover", backgroundPosition: "center" }}>
-        {/* top resource bar */}
+        {/* slim top dials bar */}
         <div className="hud">
-          <div className="hud-res">
-            {RESOURCE_IDS.map((r) => (
-              <div className="res" key={r}>
-                <span className="ic">{RESOURCE_META[r].icon}</span>
-                <span className="val">{fmt(state.resources[r])}</span>
-                {r !== "gold" && r !== "rp" && r !== "token" && r !== "renown" && <span className="muted cap">/{fmt(caps[r])}</span>}
-                <span className={"rate " + (net[r] >= 0 ? "pos" : "neg")}>{fmtRate(net[r])}</span>
-              </div>
-            ))}
-          </div>
           <div className="dials">
             <span className="pop">👥 {Math.floor(state.population)}/{cap}</span>
             <label>🍖
@@ -92,6 +82,17 @@ export function App() {
         {error && <div className="error">{error}</div>}
 
         <div className="body">
+        {/* left-hand resource rail */}
+        <div className="resrail">
+          {RESOURCE_IDS.map((r) => (
+            <div className="rchip" key={r} title={RESOURCE_META[r].label}>
+              <span className="ic">{RESOURCE_META[r].icon}</span>
+              <span className="val">{fmt(state.resources[r])}</span>
+              {r !== "gold" && r !== "rp" && r !== "token" && r !== "renown" && <span className="cap">/{fmt(caps[r])}</span>}
+              <span className={"rate " + (net[r] >= 0 ? "pos" : "neg")}>{fmtRate(net[r])}</span>
+            </div>
+          ))}
+        </div>
         {/* the active place fills the stage */}
         <div className="stage">
           {scene === "village" && <VillageTab state={state} mods={mods} dispatch={dispatch} />}
