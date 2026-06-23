@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { buildingById } from "../sim/content";
 import { footprint } from "../sim/sim";
 
@@ -124,13 +124,18 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
 
-export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, canPlace, fill, field, placeId }: {
+export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, fill, field, placeId, dragCell, dragValid, onDragMove }: {
   cols: number; rows: number; placed: Placed[];
-  selIdx: number | null; onSelect: (idx: number) => void; onMoveTo: (gx: number, gy: number) => void;
+  selIdx: number | null; onSelect: (idx: number) => void;
   bg?: string; canPlace?: (gx: number, gy: number) => boolean; fill?: boolean;
   field?: { scale: number; cx: number; cy: number };  // platform calibration (per scene)
   placeId?: string;   // when set, we're placing a NEW (unplaced) building of this id
+  dragCell?: { gx: number; gy: number } | null;   // tentative position while placing/moving
+  dragValid?: boolean;                            // is dragCell a legal spot?
+  onDragMove?: (gx: number, gy: number) => void;  // finger → tile while placing/moving
 }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const draggingRef = useRef(false);
   const sx = (gx: number, gy: number) => (gx - gy) * (TW / 2);
   const sy = (gx: number, gy: number) => (gx + gy) * (TH / 2);
   const minSx = sx(0, rows - 1), maxSx = sx(cols - 1, 0), maxSy = sy(cols - 1, rows - 1);
@@ -169,6 +174,23 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
     }
     return true;
   };
+  // map a pointer event to the grid cell under it (centres the footprint on the finger),
+  // accounting for the field transform and the PanZoom CSS transform via getScreenCTM.
+  const cellFromEvent = (e: React.PointerEvent) => {
+    const svg = svgRef.current; if (!svg || !onDragMove) return;
+    const ctm = svg.getScreenCTM(); if (!ctm) return;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    const px = (p.x - ftx) / fS, py = (p.y - fty) / fS;          // undo field transform
+    const a = (px - ox) / (TW / 2), b = (py - oy) / (TH / 2);    // undo iso projection
+    const gxF = (a + b) / 2, gyF = (b - a) / 2, n = movingN;
+    const gx = Math.max(0, Math.min(cols - n, Math.round(gxF - (n - 1) / 2)));
+    const gy = Math.max(0, Math.min(rows - n, Math.round(gyF - (n - 1) / 2)));
+    onDragMove(gx, gy);
+  };
+  const onPointerDown = (e: React.PointerEvent) => { if (moving) { draggingRef.current = true; cellFromEvent(e); } };
+  const onPointerMove = (e: React.PointerEvent) => { if (moving && draggingRef.current) cellFromEvent(e); };
+  const onPointerUp = () => { draggingRef.current = false; };
+
   const cells: { gx: number; gy: number }[] = [];
   for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) cells.push({ gx, gy });
 
@@ -188,6 +210,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   type Item = { key: string; y: number; el: React.ReactNode };
   const items: Item[] = [];
   for (const p of placed) {
+    if (moving && p.idx === selIdx) continue;   // the building being moved is drawn at dragCell
     const n = fp(p.id);
     const cMid = (p.gx + (n - 1) / 2), rMid = (p.gy + (n - 1) / 2);   // block centre (grid)
     const cx = sx(cMid, rMid) + ox;
@@ -199,6 +222,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
       </g>,
     });
   }
+  const dragLevel = movingP?.level ?? 1;
   if (!bg) for (const { gx, gy } of cells) {
     const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
     if (treeAt(gx, gy)) items.push({ key: `t${gx}-${gy}`, y: cy, el: <Tree key={`t${gx}-${gy}`} cx={cx} cy={cy} /> });
@@ -207,8 +231,9 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
   items.sort((a, b) => a.y - b.y);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? "100%" : "auto"}
-      preserveAspectRatio="xMidYMid meet" style={{ display: "block" }} className="isoboard">
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" height={fill ? "100%" : "auto"}
+      preserveAspectRatio="xMidYMid meet" style={{ display: "block", touchAction: moving ? "none" : undefined }} className="isoboard"
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       <defs>
         <radialGradient id="seaG" cx="0.5" cy="0.4" r="0.8"><stop offset="0" stopColor="#4a7e9c" /><stop offset="1" stopColor="#2f5872" /></radialGradient>
         <linearGradient id="wTimber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a87b4c" /><stop offset="1" stopColor="#7c5a3a" /></linearGradient>
@@ -228,27 +253,31 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, onMoveTo, bg, c
         <polygon points={pts(sand)} fill="#cbb079" opacity={0.95} />
         <polygon points={pts(sand.map((p) => grow(p, 0.985)))} fill="url(#grassG)" />
       </>}
-      {/* tiles: transparent ground; while moving, every valid drop ORIGIN lights up */}
+      {/* tiles: transparent ground; while placing, valid drop origins glow faintly */}
       {cells.map(({ gx, gy }) => {
         const cx = sx(gx, gy) + ox, cy = sy(gx, gy) + oy;
         const placeable = moving && validOrigin(gx, gy);
         const grass = bg ? "transparent" : ((gx + gy) % 2 ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)");
-        const fill = placeable ? "rgba(231,192,97,0.4)" : grass;
+        const fill = placeable ? "rgba(231,192,97,0.22)" : grass;
         return <polygon key={`g${gx}-${gy}`}
-          points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])}
-          fill={fill} style={{ cursor: placeable ? "copy" : "default" }}
-          onClick={() => { if (placeable) onMoveTo(gx, gy); }} />;
+          points={pts([[cx, cy - TH / 2], [cx + TW / 2, cy], [cx, cy + TH / 2], [cx - TW / 2, cy]])} fill={fill} />;
       })}
-      {/* outline the selected building's whole footprint diamond */}
-      {movingP && (() => {
-        const n = fp(movingP.id);
-        const N = [sx(movingP.gx, movingP.gy) + ox, sy(movingP.gx, movingP.gy) + oy - TH / 2];
-        const E = [sx(movingP.gx + n - 1, movingP.gy) + ox + TW / 2, sy(movingP.gx + n - 1, movingP.gy) + oy];
-        const S = [sx(movingP.gx + n - 1, movingP.gy + n - 1) + ox, sy(movingP.gx + n - 1, movingP.gy + n - 1) + oy + TH / 2];
-        const Wc = [sx(movingP.gx, movingP.gy + n - 1) + ox - TW / 2, sy(movingP.gx, movingP.gy + n - 1) + oy];
-        return <polygon points={pts([N, E, S, Wc])} fill="none" stroke="#f1d985" strokeWidth={2.5} />;
-      })()}
       {items.map((it) => it.el)}
+      {/* the building being placed/moved, drawn at the tentative cell with a validity outline */}
+      {moving && dragCell && activeId && (() => {
+        const n = movingN, { gx, gy } = dragCell;
+        const cx = sx(gx + (n - 1) / 2, gy + (n - 1) / 2) + ox;
+        const cyBase = sy(gx + n - 1, gy + n - 1) + oy;
+        const N = [sx(gx, gy) + ox, sy(gx, gy) + oy - TH / 2];
+        const E = [sx(gx + n - 1, gy) + ox + TW / 2, sy(gx + n - 1, gy) + oy];
+        const S = [sx(gx + n - 1, gy + n - 1) + ox, sy(gx + n - 1, gy + n - 1) + oy + TH / 2];
+        const Wc = [sx(gx, gy + n - 1) + ox - TW / 2, sy(gx, gy + n - 1) + oy];
+        const col = dragValid ? "#7ad06a" : "#e0604a";
+        return <g>
+          <polygon points={pts([N, E, S, Wc])} fill={dragValid ? "rgba(122,208,106,0.22)" : "rgba(224,96,74,0.22)"} stroke={col} strokeWidth={2.5} />
+          <g opacity={0.92}><IsoBuilding cx={cx} cyBase={cyBase} id={activeId} level={dragLevel} n={n} /></g>
+        </g>;
+      })()}
       </g>
     </svg>
   );

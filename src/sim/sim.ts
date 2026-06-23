@@ -139,6 +139,16 @@ const inGrid = (grid: { cols: number; rows: number }) => (id: string, x: number,
   const n = footprint(id);
   return x >= 0 && y >= 0 && x + n <= grid.cols && y + n <= grid.rows;
 };
+/** Can building `id` sit with its footprint anchored at (gx,gy)? Checks grid bounds, the
+ *  per-building zone rule (village), and no overlap with other buildings (movingIndex is
+ *  excluded so a building can stay put). Shared by the move command and the UI preview. */
+export function canPlaceAt(buildings: BuildingInstance[], movingIndex: number, id: string, gx: number, gy: number): boolean {
+  const village = isVillageBuilding(id);
+  const grid = village ? balance.villageGrid : balance.castleGrid;
+  if (village ? !placementAllowed(id, gx, gy) : !inGrid(grid)(id, gx, gy)) return false;
+  const taken = occupiedCells(buildings, village, movingIndex);
+  return buildingCells(id, gx, gy).every((c) => !taken.has(c));
+}
 export function firstFreeVillageCell(buildings: BuildingInstance[], id = ""): { gx: number; gy: number } {
   return findFreeSpot(id, occupiedCells(buildings, true), balance.villageGrid, placementAllowed);
 }
@@ -664,12 +674,7 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
     case "moveBuilding": {
       const inst = s.buildings[cmd.index];
       if (!inst) return fail("No such building.");
-      const village = isVillageBuilding(inst.id);
-      const grid = village ? balance.villageGrid : balance.castleGrid;
-      const fitsGrid = village ? placementAllowed(inst.id, cmd.gx, cmd.gy) : inGrid(grid)(inst.id, cmd.gx, cmd.gy);
-      if (!fitsGrid) return fail("That building can't go there.");
-      const taken = occupiedCells(s.buildings, village, cmd.index); // everything except this building
-      if (buildingCells(inst.id, cmd.gx, cmd.gy).some((c) => taken.has(c))) return fail("Not enough room there.");
+      if (!canPlaceAt(s.buildings, cmd.index, inst.id, cmd.gx, cmd.gy)) return fail("That building can't go there.");
       inst.gx = cmd.gx; inst.gy = cmd.gy;
       return ok();
     }

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding, placementAllowed } from "../../sim/sim";
+import { buildCost, buildTimeTicks, townHallLevel, villageGrid, isVillageBuilding, placementAllowed, firstFreeVillageCell, canPlaceAt } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
@@ -30,6 +30,17 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const placeId = pendingInst ? pendingInst.id : (placingExisting ? selInst!.id : undefined);
   const popupOpen = !!selInst && selDef && !moveMode && !pendingInst;
 
+  // drag-to-place: a tentative tile the player drags the building to, confirmed with Set.
+  const [drag, setDrag] = useState<{ gx: number; gy: number } | null>(null);
+  useEffect(() => {
+    if (placeIdx === null) { setDrag(null); return; }
+    const inst = state.buildings[placeIdx];
+    setDrag(inst.gx !== undefined ? { gx: inst.gx, gy: inst.gy! } : firstFreeVillageCell(state.buildings, inst.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeIdx]);
+  const dragValid = !!drag && !!placeId && canPlaceAt(state.buildings, placeIdx ?? -1, placeId, drag.gx, drag.gy);
+  const confirmPlace = () => { if (drag && placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx: drag.gx, gy: drag.gy }); setMoveMode(false); setDrag(null); } };
+
   const placed = state.buildings
     .map((inst, idx) => ({ inst, idx }))
     .filter(({ inst }) => isVillageBuilding(inst.id) && inst.gx !== undefined);
@@ -39,14 +50,14 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
 
   return (
     <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
-      <PanZoom fill initialScale={1}>
+      <PanZoom fill initialScale={1} lockPan={placeIdx !== null}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_village.png" fill field={{ scale: 0.984, cx: 0.452, cy: 0.491 }}
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
           selIdx={placingExisting ? sel : null}
           placeId={pendingInst ? pendingInst.id : undefined}
+          dragCell={drag} dragValid={dragValid} onDragMove={(gx, gy) => setDrag({ gx, gy })}
           canPlace={placeId ? (gx, gy) => placementAllowed(placeId, gx, gy) : undefined}
-          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }}
-          onMoveTo={(gx, gy) => { if (placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx, gy }); setMoveMode(false); } }} />
+          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }} />
       </PanZoom>
       <img className="bird" src="sprites/bird.png" alt="" aria-hidden="true" />
 
@@ -76,10 +87,12 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
       {/* action bar (bottom-left, clear of the right rail) */}
       <div className="scene-actions">
         {pendingInst
-          ? <span className="scene-hint">📍 Tap a plot to place your {buildingById[pendingInst.id].name}.</span>
+          ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Place here</button>
+              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot, then Place.</span></>
           : moveMode
-            ? <><button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
-                <span className="scene-hint">Tap an empty plot to place it.</span></>
+            ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Set here</button>
+                <button className="ghost" onClick={() => { setMoveMode(false); setDrag(null); }}>Cancel</button>
+                <span className="scene-hint">Drag it where you want it.</span></>
             : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Build</button>
                 <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>

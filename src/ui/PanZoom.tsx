@@ -7,8 +7,8 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const MAX = 3;
 
-export function PanZoom({ children, height = 360, initialScale = 1, fill = false }:
-  { children: ReactNode; height?: number; initialScale?: number; fill?: boolean }) {
+export function PanZoom({ children, height = 360, initialScale = 1, fill = false, lockPan = false }:
+  { children: ReactNode; height?: number; initialScale?: number; fill?: boolean; lockPan?: boolean }) {
   const wrap = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const size = useRef({ cw: 0, ch: 0 });
@@ -44,6 +44,7 @@ export function PanZoom({ children, height = 360, initialScale = 1, fill = false
   const mid = (a: { x: number; y: number }, b: { x: number; y: number }) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
   const onDown = (e: React.PointerEvent) => {
+    if (lockPan) return;   // a building is being placed — let the board handle drag
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dragged.current = false;
     const p = list();
@@ -52,6 +53,7 @@ export function PanZoom({ children, height = 360, initialScale = 1, fill = false
       : { dist: 0, mid: { x: e.clientX, y: e.clientY }, t: { ...t } };
   };
   const onMove = (e: React.PointerEvent) => {
+    if (lockPan) return;
     if (!ptrs.current.has(e.pointerId) || !g.current) return;
     ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = list();

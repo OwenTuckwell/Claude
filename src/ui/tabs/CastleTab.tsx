@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
-import { buildCost, buildTimeTicks, castleGrid, townHallLevel, isVillageBuilding } from "../../sim/sim";
+import { buildCost, buildTimeTicks, castleGrid, townHallLevel, isVillageBuilding, firstFreeCastleCell, canPlaceAt } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
 import { playerDefensePower } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
@@ -30,7 +30,18 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
   const selDef = selInst ? buildingById[selInst.id] : null;
   const placingExisting = moveMode && sel !== null && !pendingInst;
   const placeIdx = pendingInst ? pendingIdx : (placingExisting ? sel! : null);
+  const placeId = pendingInst ? pendingInst.id : (placingExisting ? selInst!.id : undefined);
   const popupOpen = !!selInst && selDef && !moveMode && !pendingInst;
+
+  const [drag, setDrag] = useState<{ gx: number; gy: number } | null>(null);
+  useEffect(() => {
+    if (placeIdx === null) { setDrag(null); return; }
+    const inst = state.buildings[placeIdx];
+    setDrag(inst.gx !== undefined ? { gx: inst.gx, gy: inst.gy! } : firstFreeCastleCell(state.buildings));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeIdx]);
+  const dragValid = !!drag && !!placeId && canPlaceAt(state.buildings, placeIdx ?? -1, placeId, drag.gx, drag.gy);
+  const confirmPlace = () => { if (drag && placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx: drag.gx, gy: drag.gy }); setMoveMode(false); setDrag(null); } };
 
   const placed = state.buildings
     .map((inst, idx) => ({ inst, idx }))
@@ -42,13 +53,13 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
 
   return (
     <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
-      <PanZoom fill initialScale={1}>
+      <PanZoom fill initialScale={1} lockPan={placeIdx !== null}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_castle.png" fill
           placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
           selIdx={placingExisting ? sel : null}
           placeId={pendingInst ? pendingInst.id : undefined}
-          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }}
-          onMoveTo={(gx, gy) => { if (placeIdx !== null) { dispatch({ type: "moveBuilding", index: placeIdx, gx, gy }); setMoveMode(false); } }} />
+          dragCell={drag} dragValid={dragValid} onDragMove={(gx, gy) => setDrag({ gx, gy })}
+          onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }} />
       </PanZoom>
 
       <div className="scene-chip tl">🏰 Castle <span className="tag">🛡️ {defense} · ⚔️ {standing}</span></div>
@@ -76,10 +87,12 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
 
       <div className="scene-actions">
         {pendingInst
-          ? <span className="scene-hint">📍 Tap a spot to place your {buildingById[pendingInst.id].name}.</span>
+          ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Place here</button>
+              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot, then Place.</span></>
           : moveMode
-            ? <><button className="ghost" onClick={() => setMoveMode(false)}>Cancel move</button>
-                <span className="scene-hint">Tap a spot to place it.</span></>
+            ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Set here</button>
+                <button className="ghost" onClick={() => { setMoveMode(false); setDrag(null); }}>Cancel</button>
+                <span className="scene-hint">Drag it where you want it.</span></>
             : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>
                 <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>
