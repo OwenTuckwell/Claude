@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;  // v14: huge 120x68 world, 50 rivals, player in the SW corner
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */

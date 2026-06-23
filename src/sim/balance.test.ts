@@ -31,12 +31,13 @@ describe("balance harness — long-run invariants", () => {
   it("idle realm stays sane for two weeks (no NaN, capital survives, bounded)", () => {
     let s = createInitialState(101);
     const cap = key(world.player.tile.x, world.player.tile.y);
+    const startTiles = ownedCount(s.tileOwner, "player");  // depends on the capital's land-neighbours
     for (let d = 0; d < 14; d++) { s = advance(s, DAY); expect(finite(s)).toBe(true); }
     summary("idle", s);
     expect(s.tileOwner[cap]).toBe("player");          // capital never lost
     expect(s.population).toBeGreaterThanOrEqual(0);
     // protected heartland: an idle player keeps their starting region intact
-    expect(ownedCount(s.tileOwner, "player")).toBeGreaterThanOrEqual(4);
+    expect(ownedCount(s.tileOwner, "player")).toBeGreaterThanOrEqual(startTiles);
   });
 
   it("an auto-economy player grows steadily over two weeks", () => {

@@ -163,6 +163,14 @@ export function aiTurn(state: GameState): void {
   // wilds and skirmish each other but won't strip your core (Appendix B — no wipeouts,
   // fairness floor). Your frontier becomes contestable only once you've grown past it.
   const playerProtected = ownedCount(state.tileOwner, "player") <= balance.conquest.protectedTiles;
+  // Bucket owned tiles by faction in ONE pass (O(tiles)) instead of filtering all tiles per
+  // faction (O(factions×tiles)) — essential on the big 50-rival map. Order preserved
+  // (landTiles order) so the RNG sequence — and determinism — is unchanged.
+  const ownedTiles: Record<string, { x: number; y: number }[]> = {};
+  for (const t of landTiles()) {
+    const o = state.tileOwner[key(t.x, t.y)];
+    if (o && o !== "neutral") (ownedTiles[o] ??= []).push(t);
+  }
   for (const f of factions) {
     if (f.isPlayer) continue;
     if (state.tileOwner[key(f.capital.x, f.capital.y)] !== f.id) continue; // defeated
@@ -170,7 +178,7 @@ export function aiTurn(state: GameState): void {
     // light AI economy: strength snowballs over time per archetype × difficulty
     const grown = (state.factionStrength[f.id] ?? f.difficulty * 8) + ARCHETYPE[archetypeFor(f.id)].economy * f.difficulty * 0.6;
     state.factionStrength[f.id] = Math.min(220, grown);
-    const mine = landTiles().filter((t) => state.tileOwner[key(t.x, t.y)] === f.id);
+    const mine = ownedTiles[f.id] ?? [];
     if (mine.length === 0) continue;
 
     // candidate player tiles bordering this faction (never the capital)

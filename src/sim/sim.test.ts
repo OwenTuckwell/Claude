@@ -166,7 +166,7 @@ describe("commands", () => {
 
   it("attacking sends troops out and they leave the home garrison", () => {
     let s: GameState = { ...fresh(), troops: { spearman: 10 } };
-    const r = applyCommand(s, { type: "attack", targetId: "ai_brookmere", army: { spearman: 10 } });
+    const r = applyCommand(s, { type: "attack", targetId: world.aiVillages[0].id, army: { spearman: 10 } });
     s = r.state;
     expect(r.result.ok).toBe(true);
     expect(s.troops.spearman ?? 0).toBe(0);
@@ -236,13 +236,17 @@ describe("territory, conquest & rank", () => {
 
   it("raises a tile's intel after a scouting expedition (fog of war)", () => {
     const base = createInitialState(9);
-    const cap = world.aiVillages[0].tile;
-    const s: GameState = { ...base, research: { scouting: 1 }, resources: { ...base.resources, food: 200 } };
-    expect(s.intel[key(cap.x, cap.y)] ?? 0).toBe(0);
-    const r = applyCommand(s, { type: "scoutTile", x: cap.x, y: cap.y });
+    // scout a land tile near the player's corner so the round trip is short
+    const p = world.player.tile;
+    const target = landTiles()
+      .filter((t) => !(t.x === p.x && t.y === p.y))
+      .sort((a, b) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))[3];
+    const s: GameState = { ...base, research: { scouting: 1 }, resources: { ...base.resources, food: 400 } };
+    expect(s.intel[key(target.x, target.y)] ?? 0).toBe(0);
+    const r = applyCommand(s, { type: "scoutTile", x: target.x, y: target.y });
     expect(r.result.ok).toBe(true);
-    const after = advance(r.state, 1200);
-    expect(after.intel[key(cap.x, cap.y)] ?? 0).toBeGreaterThanOrEqual(2);
+    const after = advance(r.state, 5000);
+    expect(after.intel[key(target.x, target.y)] ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it("rivals grow economically over time (AI economy)", () => {
