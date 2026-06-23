@@ -51,9 +51,11 @@ Directly addresses "map too small, enemies too close, not enough action."
     it **player-focused, never a mega 1v1**: a per-faction tile cap (`maxAiTilePct`), and
     **AI can never capture a capital** (only the player can), so no faction is eliminated /
     snowballs. Harness asserts no rival nears the Crown.
-11. ⬜ **New rivals appear over time, scaling with difficulty** — periodically awaken a
-    fresh faction on open land, difficulty scaling to game progress. (Needs a dormant-pool
-    or dynamic-faction approach — the one remaining Wave 3 piece.) **L.**
+11. ✅ **New rivals appear over time, scaling with difficulty** (commit a687f5b) — 30 of 50
+    rivals start active; the rest are **dormant** and **awaken on an interval in rising
+    difficulty**, with strength scaled to the player's progress. **AI can now overrun rival
+    capitals** (loser's land reverts to neutral), and **eliminated factions can re-awaken** —
+    so the world constantly evolves while the per-faction cap still blocks a static mega 1v1.
 12. ✅ **Enemies keep growing** — `factionStrength` snowballs per archetype × difficulty each
     AI turn (already live); the cap stops any one from running away.
 
