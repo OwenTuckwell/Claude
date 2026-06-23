@@ -6,6 +6,7 @@ import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
 import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
 import { PanZoom } from "../PanZoom";
+import { bannerTier, BANNER_RANKS } from "../../sim/renown";
 import type { BuildingDef } from "../../sim/types";
 
 const CATEGORY_ORDER = ["production", "storage", "housing", "civic", "military"] as const;
@@ -16,6 +17,7 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
   const [building, setBuilding] = useState(false);          // build menu open
   const { cols, rows } = villageGrid();
   const thLevel = townHallLevel(state);
+  const playerTier = bannerTier(state.resources.renown ?? 0);
 
   // a just-finished building waits unplaced (no gx) until the player taps a plot for it
   const pendingIdx = state.buildings.findIndex((b) => isVillageBuilding(b.id) && b.gx === undefined);
@@ -125,15 +127,18 @@ export function VillageTab({ state, mods, dispatch }: TabProps) {
                   const missingReq = (def.requires?.buildings ?? []).find((b) => !state.buildings.some((x) => x.id === b));
                   const tier = def.tier ?? 1;
                   const tierLocked = thLevel < tier;
+                  const needRank = def.requires?.bannerTier ?? 0;
+                  const rankLocked = needRank > playerTier;
                   return (
                     <div className="row" key={def.id}>
                       <div>
                         <strong>{BUILDING_ICONS[def.id] ?? "🏠"} {def.name}</strong> <span className="tag">{def.category}</span>
                         <div className="cost">{costString(cost)} · {fmtDuration(buildTimeTicks(def, 1, mods), balance.tickLengthSec)}</div>
                         {tierLocked && <div className="cost" style={{ color: "var(--bad)" }}>🔒 needs Town Hall L{tier}</div>}
+                        {rankLocked && <div className="cost" style={{ color: "var(--bad)" }}>🏅 needs Banner Rank: {BANNER_RANKS[needRank].title}</div>}
                         {missingReq && <div className="cost">needs {buildingById[missingReq]?.name}</div>}
                       </div>
-                      <button className="act" disabled={tierLocked || !!missingReq || !canAfford(state, cost)}
+                      <button className="act" disabled={tierLocked || rankLocked || !!missingReq || !canAfford(state, cost)}
                         onClick={() => { dispatch({ type: "build", building: def.id, instanceIndex: null }); setBuilding(false); }}>Build</button>
                     </div>
                   );

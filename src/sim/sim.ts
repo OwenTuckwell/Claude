@@ -5,7 +5,7 @@ import { balance, buildingById, troopById, aiById, world, researchById, factions
 import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, rpCostFor, type Modifiers } from "./effects";
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
-import { bannerTier, renownPerks } from "./renown";
+import { bannerTier, renownPerks, BANNER_RANKS } from "./renown";
 import { aiTurn, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
 import type {
   BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
@@ -509,9 +509,12 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         targetLevel = inst.level + 1 + queued;
         if (targetLevel > def.maxLevel) return fail("Already at max level.");
       } else {
-        // New construction is gated by Town Hall level (the progression spine).
+        // New construction is gated by Town Hall level (the progression spine)…
         const tier = def.tier ?? 1;
         if (townHallLevel(s) < tier) return fail(`Requires Town Hall L${tier}.`);
+        // …and prestige buildings are gated by Banner Rank (Renown).
+        const needRank = def.requires?.bannerTier ?? 0;
+        if (needRank > 0 && bannerTier(s.resources.renown ?? 0) < needRank) return fail(`Requires Banner Rank: ${BANNER_RANKS[needRank].title}.`);
       }
       for (const reqB of def.requires?.buildings ?? [])
         if (!s.buildings.some((b) => b.id === reqB)) return fail(`Requires ${buildingById[reqB]?.name ?? reqB}.`);

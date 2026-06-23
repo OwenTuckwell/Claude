@@ -32,7 +32,7 @@ export interface BuildingDef {
   costGrowth: number;
   timeBaseSec: number;
   timeGrowth: number;
-  requires?: { buildings?: string[]; research?: { id: string; rank: number }[] };
+  requires?: { buildings?: string[]; research?: { id: string; rank: number }[]; bannerTier?: number };
 }
 
 export interface ResearchEffect {
