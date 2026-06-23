@@ -1,7 +1,33 @@
 # 06 — Handoff & Pickup
 
-Where things stand at the end of the planning session, and exactly how to resume on
-another machine. Read this first when you come back.
+Where things stand, and how to resume on another machine. Read this first when you come back.
+
+## Latest updates (most recent session)
+Live at **https://OwenTuckwell.github.io/Claude/?v=110** (rotate to landscape; bump `?v=`
+to dodge cache). Save schema now **v15** — resuming an old save keeps your village /
+research / troops / renown but **resets territory** onto the new map. All **36 tests pass**.
+
+Shipped this session:
+- **Notifications** — toast pop-ups for attacks / build / train / victory (`Toasts.tsx`).
+- **Onboarding** — skippable "Getting started" checklist that ticks off as you play
+  (`Onboarding.tsx`).
+- **Wave 1 polish** — fixed the troop-count input; vineyard sprite +50%; per-building
+  **sprite variety** (mirror + jitter so clones don't look identical); **live countdown
+  timers** + progress bars on the build queue and world marches.
+- **Wave 3 — a living, bigger world:**
+  - **Huge map** 120×68 (4× tiles), **50 rivals**, **player starts in the SW corner**
+    (zoom to select tiles). `aiTurn` optimised for the scale.
+  - **Rivals fight & eliminate each other**; **new rivals rise over time** in rising
+    difficulty, scaled to your progress; eliminated ones can return.
+  - **Anti-runaway guards** so it never becomes a static mega-1v1 (per-faction cap +
+    rubber-band pecking); the balance harness asserts no rival nears the Crown.
+
+**Next up (agreed sequence):** Wave 2 — scouting depth (map marker + 🧭, scouting-distance
+research, scouts can die vs strong/distant targets, intel goes stale). Then Wave 4 —
+castle overhaul (preset rotatable wall pieces with enclosure feeding sieges). Full backlog:
+`docs/07-playtest-backlog.md`.
+
+---
 
 ## Status: most of the plan is BUILT & live
 
