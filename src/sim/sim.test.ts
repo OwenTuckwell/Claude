@@ -5,9 +5,9 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
-import { landTiles, key, ownedCount, realmInfo } from "./territory";
+import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange } from "./territory";
 import { archetypeFor, ARCHETYPE } from "./rivals";
-import { world, factions } from "./content";
+import { world, factions, balance } from "./content";
 import type { GameState } from "./types";
 
 const fresh = () => createInitialState(777);
@@ -247,6 +247,23 @@ describe("territory, conquest & rank", () => {
     expect(r.result.ok).toBe(true);
     const after = advance(r.state, 5000);
     expect(after.intel[key(target.x, target.y)] ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("limits scouting to the scouts' range (distant lands need more research)", () => {
+    const p = world.player.tile;
+    const far = landTiles().slice().sort((a, b) =>
+      (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)) - (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)))[0];
+    const s: GameState = { ...createInitialState(5), research: { scouting: 1 }, resources: { ...createInitialState(5).resources, food: 400 } };
+    expect(scoutRange(s)).toBeGreaterThan(0);
+    expect(applyCommand(s, { type: "scoutTile", x: far.x, y: far.y }).result.ok).toBe(false); // across the continent
+  });
+
+  it("lets scouted intel go stale over time", () => {
+    const explored = new Set<string>();
+    const fresh: GameState = { ...createInitialState(1), tick: 100, intel: { "5,5": 3 }, intelAt: { "5,5": 100 } };
+    expect(tileVisibility(fresh, explored, 5, 5)).toBe(3);                       // just gathered
+    const stale: GameState = { ...fresh, tick: 100 + balance.scouting.staleTicks * 2 };
+    expect(tileVisibility(stale, explored, 5, 5)).toBe(1);                       // faded two levels
   });
 
   it("rivals grow economically over time (AI economy)", () => {

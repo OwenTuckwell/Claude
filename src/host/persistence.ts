@@ -59,7 +59,7 @@ export function migrate(old: unknown): GameState {
     tick: typeof o.tick === "number" ? o.tick : 0,
     rngState: typeof o.rngState === "number" ? o.rngState : base.rngState,
     // world-coupled fields reset to fresh (the map may have changed between versions)
-    tileOwner: base.tileOwner, intel: {}, marches: [], aiState: base.aiState, lastAiTurn: 0,
+    tileOwner: base.tileOwner, intel: {}, intelAt: {}, marches: [], aiState: base.aiState, lastAiTurn: 0,
     schemaVersion: SCHEMA_VERSION,
   };
 }

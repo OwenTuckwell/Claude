@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { world, aiById, troopById, balance, factionById } from "../../sim/content";
-import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile, buildExplored, tileVisibility } from "../../sim/territory";
+import { defenderForTile, realmInfo, key as tileKey, nearestOwnedTile, buildExplored, tileVisibility, scoutRange } from "../../sim/territory";
 import { archetypeInfoFor } from "../../sim/rivals";
 import { computeModifiers } from "../../sim/effects";
 import { type Command, type GameState } from "../../sim/types";
@@ -26,6 +26,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
   const selDist = sel ? nearestOwnedTile(state.tileOwner, sel.x, sel.y).dist : 0;
   const selTravel = Math.max(1, Math.round((selDist * balance.conquest.tileTravelPerTile) / (1 + mods.marchSpeedPct)));
   const selOwn = sel ? ownerOf(sel.x, sel.y) : null;
+  const selInRange = selDist <= scoutRange(state);   // scouts can only reach so far
 
   // ownership tint over the painted terrain (translucent so the art shows through)
   const ownColor = (x: number, y: number): string | null => {
@@ -85,7 +86,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
           })}
           {/* armies in transit */}
           {state.marches.map((m) => {
-            const dest = m.kind === "conquer" ? m.targetTile : m.kind === "assault" ? aiById[m.targetId]?.tile : null;
+            const dest = m.kind === "conquer" ? m.targetTile : m.kind === "assault" ? aiById[m.targetId]?.tile : m.kind === "scout" ? m.targetTile : null;
             if (!dest) return null;
             const origin = nearestOwnedTile(state.tileOwner, dest.x, dest.y);
             const prog = Math.max(0, Math.min(1, 1 - Math.max(0, m.arriveTick - state.tick) / m.travelTicks));
@@ -93,7 +94,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
             const to = m.phase === "outbound" ? dest : origin;
             const px = from.x + (to.x - from.x) * prog + 0.5;
             const py = from.y + (to.y - from.y) * prog + 0.5;
-            return <text key={m.id} x={px} y={py} fontSize={1.8} textAnchor="middle" dominantBaseline="central">{m.kind === "conquer" ? "🚩" : "⚔️"}</text>;
+            return <text key={m.id} x={px} y={py} fontSize={1.8} textAnchor="middle" dominantBaseline="central">{m.kind === "conquer" ? "🚩" : m.kind === "scout" ? "🧭" : "⚔️"}</text>;
           })}
         </svg>
       </PanZoom>
@@ -148,13 +149,13 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
                   const fuzz = (c: number) => `~${Math.max(1, Math.round(c / 5) * 5)}`;
                   if (lv < 2) return (
                     <div className="row" style={{ marginTop: 6 }}>
-                      <span className="muted">Defenders: unknown — scout to reveal.</span>
-                      {scoutRankOk && <button className="ghost" onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>🔭 Scout</button>}
+                      <span className="muted">Defenders: unknown — scout to reveal.{!selInRange && " (beyond scout range)"}</span>
+                      {scoutRankOk && selInRange && <button className="ghost" onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>🔭 Scout</button>}
                     </div>
                   );
                   const list = Object.entries(selDef.garrison).map(([t, c]) => `${lv >= 3 ? c : fuzz(c)} ${troopById[t]?.name ?? t}`).join(", ") || "none";
                   return <div className="muted" style={{ marginTop: 6 }}>Defenders ({lv >= 3 ? "exact" : "estimated"}): {list}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}
-                    {lv < 3 && scoutRankOk && <> · <a style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>scout again</a></>}</div>;
+                    {lv < 3 && scoutRankOk && selInRange && <> · <a style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>scout again</a></>}</div>;
                 })()}
                 {selDef.isCapital && vis(sel.x, sel.y) >= 1 && <div className="cost" style={{ marginTop: 4 }}>Taking this capital topples {factionById[selDef.ownerId]?.name} entirely.</div>}
                 <h3 style={{ marginTop: 10, marginBottom: 0 }}>Assemble your army <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>· ~{fmtDuration(selTravel, balance.tickLengthSec)} march</span></h3>

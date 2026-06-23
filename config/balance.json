@@ -38,7 +38,10 @@
     "travelTicksPerRankReduction": 40,
     "sendCost": { "food": 20 },
     "baseLoot": { "wood": 40, "stone": 25, "iron": 8, "gold": 15 },
-    "lootPctPerRank": 0.5
+    "lootPctPerRank": 0.5,
+    "rangeBase": 9,
+    "rangePerRank": 6,
+    "staleTicks": 4320
   },
   "conquest": {
     "aiTurnTicks": 240,

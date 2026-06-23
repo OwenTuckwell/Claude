@@ -6,14 +6,14 @@ import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, 
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
 import { bannerTier, renownPerks, BANNER_RANKS } from "./renown";
-import { aiTurn, maybeSpawnRival, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount } from "./territory";
+import { aiTurn, maybeSpawnRival, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount, scoutRange } from "./territory";
 import type {
   BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 15;  // v15: 30 active rivals at start; dormant rivals awaken over time
+export const SCHEMA_VERSION = 16;  // v16: scouting depth — range limit, scouts can be lost, intel goes stale
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -252,6 +252,7 @@ export function createInitialState(seed = 12345): GameState {
     aiState,
     tileOwner: initOwnership(),
     intel: {},
+    intelAt: {},
     factionStrength: Object.fromEntries(allFactions.filter((f) => !f.isPlayer).map((f) => [f.id, f.difficulty * 8])),
     reports: [],
     log: [{ tick: 0, text: "Your village is founded. Long may it stand.", kind: "info" }],
@@ -359,10 +360,32 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       let loot: ResourceMap = {};
       let lines: string[];
       if (mch.targetTile) {
-        // recon: raise this tile's intel level (surveilled if Scouting is high)
-        const level = (s.research["scouting"] ?? 0) >= 3 ? 3 : 2;
-        s.intel[tileKey(mch.targetTile.x, mch.targetTile.y)] = Math.max(s.intel[tileKey(mch.targetTile.x, mch.targetTile.y)] ?? 0, level);
-        lines = [`Your scouts surveil (${mch.targetTile.x},${mch.targetTile.y}).`,
+        const { x, y } = mch.targetTile;
+        const rank = s.research["scouting"] ?? 0;
+        // scouts can be caught: risk rises with the garrison's strength and the distance,
+        // and falls with your Scouting rank. Strong, far targets may swallow your scouts.
+        const def = defenderForTile(s.tileOwner, x, y);
+        const guards = Object.values(def.garrison).reduce((a, c) => a + c, 0);
+        const dist = nearestOwnedTile(s.tileOwner, x, y).dist;
+        const risk = Math.max(0, Math.min(0.85, guards * 0.012 + dist * 0.012 - rank * 0.09));
+        const roll = nextRandom(s.rngState); s.rngState = roll.state;
+        if (roll.value < risk) {
+          const report: SiegeReport = {
+            id: `r${s.nextId++}`, kind: "scout", tick: s.tick, targetName: mch.targetName,
+            victory: false, breached: false, attackerLosses: {}, defenderLosses: {}, loot: {},
+            lines: [`Your scouts were caught near (${x},${y}).`, "They did not return."],
+          };
+          s.reports.unshift(report);
+          if (s.reports.length > 30) s.reports.length = 30;
+          log(s, `Your scouting party was lost near (${x},${y}).`, "bad");
+          return false; // the scouts are gone — no march home
+        }
+        // recon: raise this tile's intel level (surveilled if Scouting is high), timestamped
+        const level = rank >= 3 ? 3 : 2;
+        const k = tileKey(x, y);
+        s.intel[k] = Math.max(s.intel[k] ?? 0, level);
+        s.intelAt[k] = s.tick;
+        lines = [`Your scouts surveil (${x},${y}).`,
           level >= 3 ? "Full intel gathered — exact garrison and walls revealed." : "Garrison strength estimated."];
       } else {
         loot = rollScoutLoot(s, mods);
@@ -661,10 +684,11 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       const k = tileKey(cmd.x, cmd.y);
       if (s.tileOwner[k] === undefined) return fail("Nothing to scout there.");
       if (s.tileOwner[k] === "player") return fail("That land is already yours.");
+      const dist = nearestOwnedTile(s.tileOwner, cmd.x, cmd.y).dist;
+      if (dist > scoutRange(s)) return fail("Beyond your scouts' range — research Scouting Parties or Cartography.");
       const cost = balance.scouting.sendCost;
       if (!canAfford(s.resources, cost)) return fail("Not enough supplies to send scouts.");
       spend(s.resources, cost);
-      const dist = nearestOwnedTile(s.tileOwner, cmd.x, cmd.y).dist;
       const travelTicks = Math.max(1, Math.round((dist * balance.conquest.tileTravelPerTile) / (1 + mods.marchSpeedPct)));
       s.marches.push({
         id: `m${s.nextId++}`, kind: "scout", targetId: k, targetName: `Scouts → (${cmd.x},${cmd.y})`,

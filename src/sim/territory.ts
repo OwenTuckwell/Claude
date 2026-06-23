@@ -294,6 +294,14 @@ export function visionRange(state: GameState): number {
   return 2 + (state.research["cartography"] ?? 0) + (state.research["scouting"] ?? 0);
 }
 
+/** How far (tiles from your nearest holding) your scouts can reach. Grows with the Scouting
+ *  Parties research, with a bonus from Cartography — distant lands need investment to survey. */
+export function scoutRange(state: GameState): number {
+  return balance.scouting.rangeBase
+    + (state.research["scouting"] ?? 0) * balance.scouting.rangePerRank
+    + (state.research["cartography"] ?? 0) * 3;
+}
+
 export function buildExplored(state: GameState): Set<string> {
   const r = visionRange(state);
   const seen = new Set<string>();
@@ -307,9 +315,17 @@ export function buildExplored(state: GameState): Set<string> {
   return seen;
 }
 
-/** 0 unknown · 1 explored · 2 scouted · 3 surveilled */
+/** 0 unknown · 1 explored · 2 scouted · 3 surveilled. Scouted intel goes STALE: it drops a
+ *  level every `staleTicks`, so distant lands fog back over unless you re-scout. Passive
+ *  "explored" (near your own land) never decays. */
 export function tileVisibility(state: GameState, explored: Set<string>, x: number, y: number): number {
-  return Math.max(state.intel[key(x, y)] ?? 0, explored.has(key(x, y)) ? 1 : 0);
+  const k = key(x, y);
+  let intel = state.intel[k] ?? 0;
+  if (intel > 0) {
+    const age = state.tick - (state.intelAt?.[k] ?? state.tick);
+    intel = Math.max(0, intel - Math.floor(age / balance.scouting.staleTicks));
+  }
+  return Math.max(intel, explored.has(k) ? 1 : 0);
 }
 
 export function tileLoot(state: GameState, ownerId: string): ResourceMap {

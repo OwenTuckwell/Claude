@@ -104,6 +104,9 @@ export interface Balance {
     sendCost: ResourceMap;        // cost to send a scouting party
     baseLoot: ResourceMap;        // expected loot at rank 1 (randomised ±)
     lootPctPerRank: number;       // extra loot fraction per scouting rank
+    rangeBase: number;            // how far (tiles from your border) you can scout at rank 0
+    rangePerRank: number;         // +range per Scouting Parties rank
+    staleTicks: number;           // intel drops one level every this many ticks (fog returns)
   };
   conquest: {
     aiTurnTicks: number;          // how often AI factions act
@@ -214,6 +217,7 @@ export interface GameState {
   aiState: Record<string, AiVillageState>;
   tileOwner: Record<string, string>;   // "x,y" -> faction id (incl. "player", "neutral")
   intel: Record<string, number>;       // "x,y" -> recon level reached (2 scouted, 3 surveilled)
+  intelAt: Record<string, number>;      // "x,y" -> tick the intel was gathered (it goes stale)
   factionStrength: Record<string, number>; // rival economic strength, grows over time
   reports: SiegeReport[];
   log: LogEntry[];

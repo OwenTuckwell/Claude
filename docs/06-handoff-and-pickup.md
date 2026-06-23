@@ -34,14 +34,14 @@ castle overhaul (preset rotatable wall pieces with enclosure feeding sieges). Fu
 The design for taking *Bannerfall* "BIG" is written, and a large build effort has shipped
 most of it — scaling AI, fog of war, a bigger world, the village progression spine, the
 prestige system, a real art/visual overhaul, and the balance harness. Table reflects
-what's actually live. Save schema is at **v13**. Tests: **36 passing** (`npm test`).
+what's actually live. Save schema is at **v15**. Tests: **36 passing** (`npm test`).
 
 ### Plan vs. Built
 | Thing | Designed? | Built & live? | Where it's specced |
 |---|---|---|---|
 | Colour palette + **full visual overhaul** (38 building sprites, painted scene backdrops, landscape-first UI w/ resource rail + nav rail + pop-out drawers) | ✅ | ✅ | `art-style.md`, R |
 | **Isometric rendering** — IsoBoard, sprites, pinch-zoom/pan, drag-to-place buildings | ✅ | ✅ | Appendix R |
-| **Bigger map** + more opponents (38×54, ~736 tiles, 20 rivals) | ✅ | ✅ | Appendix D, E, N |
+| **Huge map** + many opponents (120×68, ~4× tiles, 50 rivals, SW-corner start) | ✅ | ✅ | Appendix D, E, N |
 | **Border-based travel** + realm **slowdown** (sprawl/scaling defenders) | ✅ | ✅ | D/E + roadmap |
 | Scaling **AI** rivals — archetypes + rubber-band + two-way sieges | ✅ | ✅ | Appendix B, C, I |
 | **Fog of war** / scouting (intel levels, scout-a-tile, fuzzed intel) | ✅ | ✅ | Appendix G |
@@ -50,7 +50,7 @@ what's actually live. Save schema is at **v13**. Tests: **36 passing** (`npm tes
 | **Active→idle economy** — idle income gated by Stewardship (10%→50%), storage a real gate | ✅ | ✅ | Appendix S |
 | **Prestige** — Renown & Banner Ranks + perks (RenownTab) | ✅ | ✅ | Appendix M |
 | **Balance harness** — long-run invariant tests (`balance.test.ts`) | ✅ | ✅ | Appendix Q |
-| Save migration (v13, preserves village, resets world-coupled fields) | ✅ | ✅ | Appendix O |
+| Save migration (v15, preserves village, resets world-coupled fields) | ✅ | ✅ | Appendix O |
 | 7 new buildings + research (vineyard, banquet hall, arena, stables, training grounds, weaponsmith, armoury) | ✅ | ✅ | — |
 | Research-tree cleanup (per-category tree + pop-out) | ✅ | ✅ (re-tier vs gateway pending) | Appendix K |
 | Tap/market scaling (rank-scaled + soft cap) | ✅ | partial (market is the early engine; explicit J scaling pending) | Appendix J |
@@ -106,11 +106,11 @@ Get set up and caught up:
    docs/05-scaling-roadmap.md (the plan — Contents, then appendices), docs/art-style.md.
 4. Skim src/sim/ (the pure deterministic core): territory.ts (AI), siege.ts (combat),
    effects.ts (typed-effect modifiers incl. idle income), renown.ts (prestige),
-   persistence.ts (saves, schema v13), types.ts (GameState). Then src/ui/ (IsoBoard,
+   persistence.ts (saves, schema v15), types.ts (GameState). Then src/ui/ (IsoBoard,
    BuildingSprite, PanZoom, App, the tabs).
 
 Context: A TypeScript+React prototype that's now substantially built — scaling AI, fog of
-war, a 38×54 world, Town-Hall-gated village progression, active→idle economy, Renown
+war, a 120×68 world, Town-Hall-gated village progression, active→idle economy, Renown
 prestige, a full sprite/visual overhaul, and a balance harness are all LIVE (see the
 Plan-vs-Built table). Still open: spatial breach-lane siege resolution (Appendix L),
 politics/boosts (M), onboarding (P), explicit tap scaling (J).
