@@ -9,6 +9,7 @@ import type { Modifiers } from "./effects";
 export interface SiegeDefender {
   garrison: Record<string, number>;
   fortifications: { building: string; level: number }[];
+  enclosure?: number;   // 0..1 — how well the walls seal the keep; scales wall effectiveness
 }
 
 export interface SiegeOutcome {
@@ -90,16 +91,20 @@ export function resolveSiege(
   const defenderStart = counts(def, dMods);
 
   // ---- Stage 1: walls ----
-  let fortHP = 0;
+  let rawFortHP = 0;
   let towerSlots = 0;
   for (const f of defender.fortifications) {
     const bd = buildingById[f.building];
-    fortHP += (bd?.defense?.health ?? 0) * f.level * (1 + dMods.defenseHealthPct);
+    rawFortHP += (bd?.defense?.health ?? 0) * f.level * (1 + dMods.defenseHealthPct);
     towerSlots += (bd?.defense?.garrisonSlots ?? 0) * f.level;
   }
+  // Layout matters: walls only protect to the degree they ENCLOSE the keep. Scattered walls
+  // (or no keep) leave gaps the attackers pour through, so their HP barely counts.
+  const enclosure = defender.enclosure ?? 1;
+  const fortHP = rawFortHP * enclosure;
   let breached = true;
   if (fortHP > 0) {
-    lines.push(`The defenders man ${Math.round(fortHP)} HP of walls and towers.`);
+    lines.push(`The defenders man ${Math.round(fortHP)} HP of walls and towers${enclosure < 0.99 ? ` (walls ${Math.round(enclosure * 100)}% enclosing)` : ""}.`);
     // Siege engines batter the walls.
     let siegeDmg = 0;
     for (const id of Object.keys(atk.hp)) {

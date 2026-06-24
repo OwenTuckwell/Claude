@@ -94,6 +94,7 @@ h1, h2, h3, .card h3 { font-family: var(--display); letter-spacing: 0.2px; }
 .scene-chip { position: absolute; z-index: 6; background: rgba(20,14,6,0.6); color: #f3e8cf; border: 1px solid var(--line2);
   border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 700; font-family: var(--display); }
 .scene-chip.tl { top: 8px; left: 8px; }
+.scene-chip.tl2 { top: 46px; left: 8px; font-size: 11px; font-weight: 600; max-width: 64%; font-family: inherit; }
 .scene-chip .tag { margin-left: 4px; }
 .scene-queue { position: absolute; top: 8px; right: 8px; z-index: 6; width: 188px; display: grid; gap: 5px; }
 .sq-item { background: rgba(20,14,6,0.64); border: 1px solid var(--line2); border-radius: 8px; padding: 5px 7px; font-size: 11px; }

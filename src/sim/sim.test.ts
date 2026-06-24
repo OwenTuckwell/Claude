@@ -5,10 +5,10 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
-import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange } from "./territory";
+import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure } from "./territory";
 import { archetypeFor, ARCHETYPE } from "./rivals";
 import { world, factions, balance } from "./content";
-import type { GameState } from "./types";
+import type { GameState, BuildingInstance } from "./types";
 
 const fresh = () => createInitialState(777);
 
@@ -264,6 +264,24 @@ describe("territory, conquest & rank", () => {
     expect(tileVisibility(fresh, explored, 5, 5)).toBe(3);                       // just gathered
     const stale: GameState = { ...fresh, tick: 100 + balance.scouting.staleTicks * 2 };
     expect(tileVisibility(stale, explored, 5, 5)).toBe(1);                       // faded two levels
+  });
+
+  it("castle enclosure rewards walling the keep in", () => {
+    const ringed: BuildingInstance[] = [
+      { id: "keep", level: 1, gx: 3, gy: 3 },              // 2×2 keep at (3,3)-(4,4)
+      // a full wall ring around the 2×2 keep
+      { id: "wall", level: 1, gx: 2, gy: 2 }, { id: "wall", level: 1, gx: 3, gy: 2 }, { id: "wall", level: 1, gx: 4, gy: 2 }, { id: "wall", level: 1, gx: 5, gy: 2 },
+      { id: "wall", level: 1, gx: 2, gy: 5 }, { id: "wall", level: 1, gx: 3, gy: 5 }, { id: "wall", level: 1, gx: 4, gy: 5 }, { id: "wall", level: 1, gx: 5, gy: 5 },
+      { id: "wall", level: 1, gx: 2, gy: 3 }, { id: "wall", level: 1, gx: 2, gy: 4 },
+      { id: "wall", level: 1, gx: 5, gy: 3 }, { id: "wall", level: 1, gx: 5, gy: 4 },
+    ];
+    const scattered: BuildingInstance[] = [
+      { id: "keep", level: 1, gx: 3, gy: 3 },
+      { id: "wall", level: 1, gx: 0, gy: 0 }, { id: "wall", level: 1, gx: 7, gy: 7 },
+    ];
+    expect(castleEnclosure(ringed)).toBeGreaterThan(0.95);
+    expect(castleEnclosure(scattered)).toBeLessThan(0.6);
+    expect(castleEnclosure([])).toBe(0);                  // nothing to defend
   });
 
   it("rivals grow economically over time (AI economy)", () => {

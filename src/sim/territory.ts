@@ -3,9 +3,9 @@
 import { world, factions, factionById, aiById, balance, troopById, buildingById } from "./content";
 import { nextRandom } from "./rng";
 import { archetypeInfoFor, archetypeFor, ARCHETYPE, playerStrengthIndex } from "./rivals";
-import { resolveSiege } from "./siege";
+import { resolveSiege, type SiegeDefender } from "./siege";
 import { computeModifiers, emptyModifiers } from "./effects";
-import type { SiegeReport } from "./types";
+import type { SiegeReport, BuildingInstance } from "./types";
 import type { GameState, ResourceMap } from "./types";
 import { RESOURCE_IDS } from "./types";
 
@@ -133,14 +133,57 @@ export function playerDefensePower(state: GameState): number {
 
 function roll(state: GameState): number { const r = nextRandom(state.rngState); state.rngState = r.state; return r.value; }
 
-/** The player's home defence as a SiegeDefender: standing army + fortifications. */
-function playerAsDefender(state: GameState): { garrison: Record<string, number>; fortifications: { building: string; level: number }[] } {
+/** How well your castle walls SEAL your keep, 0..1. A keep ringed by walls (or tucked in a
+ *  grid corner) counts its wall HP in full; a keep with gaps to the outside — or no keep at
+ *  all — leaves the walls mostly wasted. Pure & deterministic; the siege resolver reads it. */
+export function castleEnclosure(buildings: BuildingInstance[]): number {
+  const { cols, rows } = balance.castleGrid;
+  const fp = (id: string) => buildingById[id]?.footprint ?? 1;
+  const barrier = new Set<string>();   // every fortification cell blocks movement
+  const keepCells = new Set<string>();
+  for (const b of buildings) {
+    if (buildingById[b.id]?.category !== "fortification" || b.gx === undefined || b.gy === undefined) continue;
+    const n = fp(b.id);
+    for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
+      const k = `${b.gx + dx},${b.gy + dy}`;
+      barrier.add(k);
+      if (b.id === "keep") keepCells.add(k);
+    }
+  }
+  if (keepCells.size === 0) return barrier.size > 0 ? 0.4 : 0;   // no stronghold core
+  const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
+  // flood "outside" inward from the border, through non-barrier cells
+  const outside = new Set<string>();
+  const stack: [number, number][] = [];
+  const seed = (x: number, y: number) => { const k = `${x},${y}`; if (inb(x, y) && !barrier.has(k) && !outside.has(k)) { outside.add(k); stack.push([x, y]); } };
+  for (let x = 0; x < cols; x++) { seed(x, 0); seed(x, rows - 1); }
+  for (let y = 0; y < rows; y++) { seed(0, y); seed(cols - 1, y); }
+  while (stack.length) {
+    const [x, y] = stack.pop()!;
+    seed(x + 1, y); seed(x - 1, y); seed(x, y + 1); seed(x, y - 1);
+  }
+  // sealed fraction of the keep's on-grid ring (barrier or walled-off interior = sealed)
+  let total = 0, sealed = 0;
+  for (const kc of keepCells) {
+    const [x, y] = kc.split(",").map(Number);
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
+      const k = `${nx},${ny}`;
+      if (keepCells.has(k) || !inb(nx, ny)) continue;   // skip the keep's own cells & the grid edge
+      total++;
+      if (barrier.has(k) || !outside.has(k)) sealed++;
+    }
+  }
+  return 0.4 + 0.6 * (total > 0 ? sealed / total : 1);   // keep alone = 0.4, fully ringed = 1.0
+}
+
+/** The player's home defence as a SiegeDefender: standing army + fortifications + enclosure. */
+function playerAsDefender(state: GameState): SiegeDefender {
   const garrison: Record<string, number> = {};
   for (const [id, c] of Object.entries(state.troops)) if (c > 0) garrison[id] = c;
   const fortifications = state.buildings
     .filter((b) => buildingById[b.id].category === "fortification")
     .map((b) => ({ building: b.id, level: b.level }));
-  return { garrison, fortifications };
+  return { garrison, fortifications, enclosure: castleEnclosure(state.buildings) };
 }
 
 /** Turn a rival's abstract strength into a concrete attacking army (incl. siege engines

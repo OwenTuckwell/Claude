@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { buildings as buildingDefs, buildingById, balance } from "../../sim/content";
 import { buildCost, buildTimeTicks, castleGrid, townHallLevel, isVillageBuilding, firstFreeCastleCell, canPlaceAt } from "../../sim/sim";
 import { isBuildingUnlocked } from "../../sim/effects";
-import { playerDefensePower } from "../../sim/territory";
+import { playerDefensePower, castleEnclosure } from "../../sim/territory";
 import { canAfford, costString, type TabProps } from "../helpers";
 import { fmtDuration, BUILDING_ICONS } from "../format";
 import { IsoBoard, boardSize, type Placed } from "../IsoBoard";
@@ -22,6 +22,8 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
 
   const defense = Math.round(playerDefensePower(state));
   const standing = Object.values(state.troops).reduce((a, c) => a + c, 0);
+  const enclosure = castleEnclosure(state.buildings);
+  const hasKeep = state.buildings.some((b) => b.id === "keep");
 
   const pendingIdx = state.buildings.findIndex((b) => !isVillageBuilding(b.id) && b.gx === undefined);
   const pendingInst = pendingIdx >= 0 ? state.buildings[pendingIdx] : null;
@@ -62,7 +64,13 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
           onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }} />
       </PanZoom>
 
-      <div className="scene-chip tl">🏰 Castle <span className="tag">🛡️ {defense} · ⚔️ {standing}</span></div>
+      <div className="scene-chip tl">🏰 Castle <span className="tag">🛡️ {defense} · ⚔️ {standing} · 🧱 {Math.round(enclosure * 100)}%</span></div>
+      <div className="scene-chip tl2" style={{ color: enclosure >= 0.99 ? "#8fe36b" : enclosure >= 0.7 ? "#f1d985" : "#e6a07a" }}>
+        {hasKeep
+          ? enclosure >= 0.99 ? "🧱 Keep fully enclosed — walls at full strength in a siege."
+            : `🧱 Keep ${Math.round(enclosure * 100)}% enclosed — ring it with walls for full defence.`
+          : "🏯 Build a Keep and wall it in — an enclosed keep makes your walls count."}
+      </div>
       {placed.length === 0 && <div className="castle-empty">No walls yet — research <b>Masonry</b> and raise some.</div>}
 
       {queue.length > 0 && (
