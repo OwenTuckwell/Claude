@@ -5,7 +5,7 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
-import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure } from "./territory";
+import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure, aiEnclosure } from "./territory";
 import { archetypeFor, ARCHETYPE } from "./rivals";
 import { world, factions, balance } from "./content";
 import type { GameState, BuildingInstance } from "./types";
@@ -282,6 +282,12 @@ describe("territory, conquest & rank", () => {
     expect(castleEnclosure(ringed)).toBeGreaterThan(0.95);
     expect(castleEnclosure(scattered)).toBeLessThan(0.6);
     expect(castleEnclosure([])).toBe(0);                  // nothing to defend
+  });
+
+  it("tougher rival keeps are better enclosed (harder to breach)", () => {
+    expect(aiEnclosure(5)).toBeGreaterThan(aiEnclosure(1));
+    expect(aiEnclosure(5)).toBeLessThanOrEqual(1);
+    expect(aiEnclosure(1)).toBeGreaterThan(0.4);
   });
 
   it("rivals grow economically over time (AI economy)", () => {

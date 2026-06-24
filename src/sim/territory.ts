@@ -100,7 +100,14 @@ export function realmInfo(state: GameState): RealmInfo {
   };
 }
 
-export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; }
+export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; enclosure?: number; }
+
+/** How well an AI capital's walls seal its keep, by difficulty — tougher rivals are
+ *  better-fortified, so their wall HP counts for more (mirrors the player's castle
+ *  enclosure). Scouting reveals this so you can plan which keeps need siege engines. */
+export function aiEnclosure(difficulty: number): number {
+  return Math.min(1, 0.55 + difficulty * 0.09);   // d1 ≈ 0.64 … d5 = 1.0
+}
 
 export function defenderForTile(tileOwner: Record<string, string>, x: number, y: number): TileDefender {
   const ownerId = tileOwner[key(x, y)] ?? "neutral";
@@ -110,7 +117,7 @@ export function defenderForTile(tileOwner: Record<string, string>, x: number, y:
   const cap = factions.find((f) => f.capital.x === x && f.capital.y === y && !f.isPlayer);
   if (cap && ownerId === cap.id) {
     const v = aiById[cap.id];
-    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true };
+    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true, enclosure: aiEnclosure(cap.difficulty) };
   }
   if (ownerId === "neutral") return { garrison: grow({ spearman: 2 }), fortifications: [], ownerId, isCapital: false };
   const diff = factionById[ownerId]?.difficulty ?? 1;
