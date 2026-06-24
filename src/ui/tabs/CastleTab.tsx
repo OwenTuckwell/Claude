@@ -57,9 +57,10 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
     <div className="vscene" style={{ aspectRatio: `${fb.w} / ${fb.h}` }}>
       <PanZoom fill initialScale={1} lockPan={placeIdx !== null}>
         <IsoBoard cols={cols} rows={rows} bg="sprites/bg_castle.png" fill
-          placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy! }))}
+          placed={placed.map(({ inst, idx }): Placed => ({ idx, id: inst.id, level: inst.level, gx: inst.gx!, gy: inst.gy!, rot: inst.rot }))}
           selIdx={placingExisting ? sel : null}
           placeId={pendingInst ? pendingInst.id : undefined}
+          placeRot={placeIdx !== null ? (state.buildings[placeIdx]?.rot ?? 0) : 0}
           dragCell={drag} dragValid={dragValid} onDragMove={(gx, gy) => setDrag({ gx, gy })}
           onSelect={(idx) => { if (placeIdx === null) { setSel(idx); setMoveMode(false); } }} />
       </PanZoom>
@@ -96,11 +97,13 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
       <div className="scene-actions">
         {pendingInst
           ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Place here</button>
-              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot, then Place.</span></>
+              {placeId === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
+              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot{placeId === "wall" ? ", rotate to aim the wall," : ""} then Place.</span></>
           : moveMode
             ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Set here</button>
+                {placeId === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
                 <button className="ghost" onClick={() => { setMoveMode(false); setDrag(null); }}>Cancel</button>
-                <span className="scene-hint">Drag it where you want it.</span></>
+                <span className="scene-hint">Drag it where you want it{placeId === "wall" ? " · rotate to aim" : ""}.</span></>
             : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>
                 <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>
@@ -125,6 +128,7 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
                   {!maxed && <div className="cost" style={{ marginBottom: 8 }}>Reinforce → L{next}: {costString(cost)} · {fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)}</div>}
                   <div className="row">
                     <button className="ghost" onClick={() => setMoveMode(true)}>↔ Move</button>
+                    {selInst.id === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: sel! })}>⟳ Rotate</button>}
                     <button className="act" disabled={maxed || !canAfford(state, cost)}
                       onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
                       {maxed ? "Max level" : "Reinforce"}

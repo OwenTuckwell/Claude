@@ -100,7 +100,14 @@ export function realmInfo(state: GameState): RealmInfo {
   };
 }
 
-export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; }
+export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; enclosure?: number; }
+
+/** How well an AI capital's walls seal its keep, by difficulty — tougher rivals are
+ *  better-fortified, so their wall HP counts for more (mirrors the player's castle
+ *  enclosure). Scouting reveals this so you can plan which keeps need siege engines. */
+export function aiEnclosure(difficulty: number): number {
+  return Math.min(1, 0.55 + difficulty * 0.09);   // d1 ≈ 0.64 … d5 = 1.0
+}
 
 export function defenderForTile(tileOwner: Record<string, string>, x: number, y: number): TileDefender {
   const ownerId = tileOwner[key(x, y)] ?? "neutral";
@@ -110,7 +117,7 @@ export function defenderForTile(tileOwner: Record<string, string>, x: number, y:
   const cap = factions.find((f) => f.capital.x === x && f.capital.y === y && !f.isPlayer);
   if (cap && ownerId === cap.id) {
     const v = aiById[cap.id];
-    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true };
+    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true, enclosure: aiEnclosure(cap.difficulty) };
   }
   if (ownerId === "neutral") return { garrison: grow({ spearman: 2 }), fortifications: [], ownerId, isCapital: false };
   const diff = factionById[ownerId]?.difficulty ?? 1;
@@ -136,41 +143,62 @@ function roll(state: GameState): number { const r = nextRandom(state.rngState); 
 /** How well your castle walls SEAL your keep, 0..1. A keep ringed by walls (or tucked in a
  *  grid corner) counts its wall HP in full; a keep with gaps to the outside — or no keep at
  *  all — leaves the walls mostly wasted. Pure & deterministic; the siege resolver reads it. */
+// Grid directions, indexed by an edge piece's `rot`: 0:+x 1:+y 2:-x 3:-y.
+const WALL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
+/** Canonical key for the edge between a cell and its neighbour (order-independent). */
+function edgeKey(x: number, y: number, dx: number, dy: number): string {
+  const x2 = x + dx, y2 = y + dy;
+  return (x < x2 || (x === x2 && y < y2)) ? `${x},${y}|${x2},${y2}` : `${x2},${y2}|${x},${y}`;
+}
+
 export function castleEnclosure(buildings: BuildingInstance[]): number {
   const { cols, rows } = balance.castleGrid;
   const fp = (id: string) => buildingById[id]?.footprint ?? 1;
-  const barrier = new Set<string>();   // every fortification cell blocks movement
+  const blocked = new Set<string>();   // wall EDGES (a wall sits on one tile edge)
+  const solid = new Set<string>();     // cells filled by a structure (tower/gate/keep/moat)
   const keepCells = new Set<string>();
   for (const b of buildings) {
     if (buildingById[b.id]?.category !== "fortification" || b.gx === undefined || b.gy === undefined) continue;
-    const n = fp(b.id);
-    for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
-      const k = `${b.gx + dx},${b.gy + dy}`;
-      barrier.add(k);
-      if (b.id === "keep") keepCells.add(k);
+    if (b.id === "wall") {
+      const [dx, dy] = WALL_DIRS[(((b.rot ?? 0) % 4) + 4) % 4];
+      blocked.add(edgeKey(b.gx, b.gy, dx, dy));   // a wall blocks its one rotated edge
+    } else {
+      const n = fp(b.id);
+      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
+        const k = `${b.gx + dx},${b.gy + dy}`;
+        solid.add(k);
+        if (b.id === "keep") keepCells.add(k);
+      }
     }
   }
-  if (keepCells.size === 0) return barrier.size > 0 ? 0.4 : 0;   // no stronghold core
+  if (keepCells.size === 0) return (blocked.size + solid.size) > 0 ? 0.4 : 0;   // no stronghold core
   const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
-  // flood "outside" inward from the border, through non-barrier cells
+  // flood the "outside" inward from the border; can't enter solid cells or cross wall edges
   const outside = new Set<string>();
   const stack: [number, number][] = [];
-  const seed = (x: number, y: number) => { const k = `${x},${y}`; if (inb(x, y) && !barrier.has(k) && !outside.has(k)) { outside.add(k); stack.push([x, y]); } };
-  for (let x = 0; x < cols; x++) { seed(x, 0); seed(x, rows - 1); }
-  for (let y = 0; y < rows; y++) { seed(0, y); seed(cols - 1, y); }
+  const enter = (x: number, y: number, fx: number, fy: number) => {
+    if (!inb(x, y)) return;
+    const k = `${x},${y}`;
+    if (outside.has(k) || solid.has(k)) return;
+    if ((fx !== x || fy !== y) && blocked.has(edgeKey(fx, fy, x - fx, y - fy))) return;  // wall on this edge
+    outside.add(k); stack.push([x, y]);
+  };
+  for (let x = 0; x < cols; x++) { enter(x, 0, x, 0); enter(x, rows - 1, x, rows - 1); }
+  for (let y = 0; y < rows; y++) { enter(0, y, 0, y); enter(cols - 1, y, cols - 1, y); }
   while (stack.length) {
     const [x, y] = stack.pop()!;
-    seed(x + 1, y); seed(x - 1, y); seed(x, y + 1); seed(x, y - 1);
+    for (const [dx, dy] of WALL_DIRS) enter(x + dx, y + dy, x, y);
   }
-  // sealed fraction of the keep's on-grid ring (barrier or walled-off interior = sealed)
+  // sealed fraction of the keep's perimeter (wall edge, adjacent structure, or walled-off interior)
   let total = 0, sealed = 0;
   for (const kc of keepCells) {
     const [x, y] = kc.split(",").map(Number);
-    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
-      const k = `${nx},${ny}`;
-      if (keepCells.has(k) || !inb(nx, ny)) continue;   // skip the keep's own cells & the grid edge
+    for (const [dx, dy] of WALL_DIRS) {
+      const nx = x + dx, ny = y + dy, nk = `${nx},${ny}`;
+      if (keepCells.has(nk)) continue;
       total++;
-      if (barrier.has(k) || !outside.has(k)) sealed++;
+      if (!inb(nx, ny)) continue;   // open at the grid edge → not sealed
+      if (solid.has(nk) || blocked.has(edgeKey(x, y, dx, dy)) || !outside.has(nk)) sealed++;
     }
   }
   return 0.4 + 0.6 * (total > 0 ? sealed / total : 1);   // keep alone = 0.4, fully ringed = 1.0

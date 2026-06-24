@@ -154,7 +154,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
                     </div>
                   );
                   const list = Object.entries(selDef.garrison).map(([t, c]) => `${lv >= 3 ? c : fuzz(c)} ${troopById[t]?.name ?? t}`).join(", ") || "none";
-                  return <div className="muted" style={{ marginTop: 6 }}>Defenders ({lv >= 3 ? "exact" : "estimated"}): {list}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}
+                  return <div className="muted" style={{ marginTop: 6 }}>Defenders ({lv >= 3 ? "exact" : "estimated"}): {list}{selDef.fortifications.length ? ` · walls: ${selDef.fortifications.map((f) => `${f.building} L${f.level}`).join(", ")}` : ""}{selDef.isCapital && selDef.enclosure !== undefined ? ` · keep ${Math.round(selDef.enclosure * 100)}% sealed (bring siege engines)` : ""}
                     {lv < 3 && scoutRankOk && selInRange && <> · <a style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => dispatch({ type: "scoutTile", x: sel.x, y: sel.y })}>scout again</a></>}</div>;
                 })()}
                 {selDef.isCapital && vis(sel.x, sel.y) >= 1 && <div className="cost" style={{ marginTop: 4 }}>Taking this capital topples {factionById[selDef.ownerId]?.name} entirely.</div>}
@@ -163,6 +163,7 @@ export function WorldTab({ state, dispatch }: { state: GameState; dispatch: (c: 
                   <div className="row" key={id} style={{ marginTop: 4 }}>
                     <span>{troopById[id].name} <span className="muted">(have {c})</span></span>
                     <input className="num" type="number" min={0} max={c} value={army[id] ?? 0}
+                      onFocus={(e) => e.currentTarget.select()}
                       onChange={(e) => setArmy({ ...army, [id]: Math.max(0, Math.min(c, Math.floor(Number(e.target.value) || 0))) })} />
                   </div>
                 ))}

@@ -5,7 +5,7 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
-import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure } from "./territory";
+import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure, aiEnclosure } from "./territory";
 import { archetypeFor, ARCHETYPE } from "./rivals";
 import { world, factions, balance } from "./content";
 import type { GameState, BuildingInstance } from "./types";
@@ -267,21 +267,28 @@ describe("territory, conquest & rank", () => {
   });
 
   it("castle enclosure rewards walling the keep in", () => {
+    // 2×2 keep at (3,3)-(4,4); edge walls on the 8 adjacent cells, each rotated to seal the
+    // shared edge with a keep cell (rot 0:+x 1:+y 2:-x 3:-y).
     const ringed: BuildingInstance[] = [
-      { id: "keep", level: 1, gx: 3, gy: 3 },              // 2×2 keep at (3,3)-(4,4)
-      // a full wall ring around the 2×2 keep
-      { id: "wall", level: 1, gx: 2, gy: 2 }, { id: "wall", level: 1, gx: 3, gy: 2 }, { id: "wall", level: 1, gx: 4, gy: 2 }, { id: "wall", level: 1, gx: 5, gy: 2 },
-      { id: "wall", level: 1, gx: 2, gy: 5 }, { id: "wall", level: 1, gx: 3, gy: 5 }, { id: "wall", level: 1, gx: 4, gy: 5 }, { id: "wall", level: 1, gx: 5, gy: 5 },
-      { id: "wall", level: 1, gx: 2, gy: 3 }, { id: "wall", level: 1, gx: 2, gy: 4 },
-      { id: "wall", level: 1, gx: 5, gy: 3 }, { id: "wall", level: 1, gx: 5, gy: 4 },
+      { id: "keep", level: 1, gx: 3, gy: 3 },
+      { id: "wall", level: 1, gx: 2, gy: 3, rot: 0 }, { id: "wall", level: 1, gx: 2, gy: 4, rot: 0 }, // west edges
+      { id: "wall", level: 1, gx: 5, gy: 3, rot: 2 }, { id: "wall", level: 1, gx: 5, gy: 4, rot: 2 }, // east edges
+      { id: "wall", level: 1, gx: 3, gy: 2, rot: 1 }, { id: "wall", level: 1, gx: 4, gy: 2, rot: 1 }, // north edges
+      { id: "wall", level: 1, gx: 3, gy: 5, rot: 3 }, { id: "wall", level: 1, gx: 4, gy: 5, rot: 3 }, // south edges
     ];
     const scattered: BuildingInstance[] = [
       { id: "keep", level: 1, gx: 3, gy: 3 },
-      { id: "wall", level: 1, gx: 0, gy: 0 }, { id: "wall", level: 1, gx: 7, gy: 7 },
+      { id: "wall", level: 1, gx: 0, gy: 0, rot: 0 }, { id: "wall", level: 1, gx: 7, gy: 7, rot: 0 },
     ];
     expect(castleEnclosure(ringed)).toBeGreaterThan(0.95);
     expect(castleEnclosure(scattered)).toBeLessThan(0.6);
     expect(castleEnclosure([])).toBe(0);                  // nothing to defend
+  });
+
+  it("tougher rival keeps are better enclosed (harder to breach)", () => {
+    expect(aiEnclosure(5)).toBeGreaterThan(aiEnclosure(1));
+    expect(aiEnclosure(5)).toBeLessThanOrEqual(1);
+    expect(aiEnclosure(1)).toBeGreaterThan(0.4);
   });
 
   it("rivals grow economically over time (AI economy)", () => {

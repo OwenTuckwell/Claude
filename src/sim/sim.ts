@@ -6,7 +6,7 @@ import { computeModifiers, emptyModifiers, isBuildingUnlocked, isTroopUnlocked, 
 import { resolveSiege, type SiegeDefender } from "./siege";
 import { nextRandom } from "./rng";
 import { bannerTier, renownPerks, BANNER_RANKS } from "./renown";
-import { aiTurn, maybeSpawnRival, defenderForTile, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount, scoutRange } from "./territory";
+import { aiTurn, maybeSpawnRival, defenderForTile, aiEnclosure, initOwnership, key as tileKey, tileLoot, nearestOwnedTile, ownedCount, scoutRange } from "./territory";
 import type {
   BuildingDef, BuildingInstance, Command, CommandResult, GameState, RationLevel,
   ResourceId, ResourceMap, SiegeReport,
@@ -407,7 +407,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
     if (mch.phase === "outbound" && mch.kind === "conquer" && mch.targetTile) {
       const { x, y } = mch.targetTile;
       const def = defenderForTile(s.tileOwner, x, y);
-      const outcome = resolveSiege(mch.army, { garrison: def.garrison, fortifications: def.fortifications }, mods, s.rngState, emptyModifiers());
+      const outcome = resolveSiege(mch.army, { garrison: def.garrison, fortifications: def.fortifications, enclosure: def.enclosure }, mods, s.rngState, emptyModifiers());
       s.rngState = outcome.rngState;
       let loot: ResourceMap = {};
       if (outcome.victory) {
@@ -451,6 +451,7 @@ function tickOnce(s: GameState, mods: Modifiers, caps: Record<ResourceId, number
       const defender: SiegeDefender = {
         garrison: Object.fromEntries(ai.garrison.map((g) => [g.troop, g.count])),
         fortifications: ai.fortifications,
+        enclosure: aiEnclosure(ai.difficulty),
       };
       const outcome = resolveSiege(mch.army, defender, mods, s.rngState, emptyModifiers());
       s.rngState = outcome.rngState;
@@ -707,6 +708,13 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       if (!inst) return fail("No such building.");
       if (!canPlaceAt(s.buildings, cmd.index, inst.id, cmd.gx, cmd.gy)) return fail("That building can't go there.");
       inst.gx = cmd.gx; inst.gy = cmd.gy;
+      return ok();
+    }
+
+    case "rotateBuilding": {
+      const inst = s.buildings[cmd.index];
+      if (!inst) return fail("No such building.");
+      inst.rot = (((inst.rot ?? 0) + 1) % 4);   // cycle the edge a wall/gate sits on
       return ok();
     }
 
