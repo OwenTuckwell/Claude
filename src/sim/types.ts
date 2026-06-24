@@ -27,6 +27,7 @@ export interface BuildingDef {
   defense?: { health?: number; garrisonSlots?: number };
   tier?: number;        // Town Hall level required to construct (default 1); Appendix S/T
   footprint?: number;   // square side length in grid tiles (default 1 → 1×1; 2 → 2×2; 3 → 3×3)
+  unique?: boolean;     // only one may ever be built (e.g. the Keep — the castle's core)
   maxLevel: number;
   costBase: ResourceMap;
   costGrowth: number;

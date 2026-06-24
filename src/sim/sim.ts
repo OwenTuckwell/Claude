@@ -545,6 +545,10 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
         targetLevel = inst.level + 1 + queued;
         if (targetLevel > def.maxLevel) return fail("Already at max level.");
       } else {
+        // Unique buildings (e.g. the Keep) may only be built once — count built + queued.
+        if (def.unique && (s.buildings.some((b) => b.id === def.id)
+          || s.buildQueue.some((o) => o.building === def.id && o.instanceIndex === null)))
+          return fail(`You can only build one ${def.name}.`);
         // New construction is gated by Town Hall level (the progression spine)…
         const tier = def.tier ?? 1;
         if (townHallLevel(s) < tier) return fail(`Requires Town Hall L${tier}.`);
