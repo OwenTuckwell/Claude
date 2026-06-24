@@ -707,6 +707,13 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       return ok();
     }
 
+    case "rotateBuilding": {
+      const inst = s.buildings[cmd.index];
+      if (!inst) return fail("No such building.");
+      inst.rot = (((inst.rot ?? 0) + 1) % 4);   // cycle the edge a wall/gate sits on
+      return ok();
+    }
+
     case "conquer": {
       const k = tileKey(cmd.x, cmd.y);
       const owner = s.tileOwner[k];
