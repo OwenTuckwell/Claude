@@ -130,6 +130,28 @@ function Tree({ cx, cy }: { cx: number; cy: number }) {
 function Bush({ cx, cy }: { cx: number; cy: number }) {
   return <g><circle cx={cx} cy={cy} r={4.5} fill="#5f7a3e" /><circle cx={cx + 4} cy={cy + 1} r={3.5} fill="#6f8a48" /></g>;
 }
+// A wall fills its whole tile as a low stone rampart, so adjacent wall tiles butt together
+// into a continuous, connected wall (the castle reads as a fortress, not scattered blocks).
+// Crenellations along the top sell the battlement; height nudges up with level.
+function Wall({ cx, cy, level }: { cx: number; cy: number; level: number }) {
+  const h = 15 + Math.min(8, (level - 1) * 2);
+  const hw = TW / 2, hh = TH / 2;
+  const S = [cx, cy + hh], E = [cx + hw, cy], W = [cx - hw, cy];
+  const Nt = [cx, cy - hh - h], Et = [cx + hw, cy - h], St = [cx, cy + hh - h], Wt = [cx - hw, cy - h];
+  const OL = { stroke: "#33271a", strokeWidth: 0.6, strokeLinejoin: "round" as const };
+  return (
+    <g>
+      <polygon points={pts([W, S, St, Wt])} fill="#6f6a63" {...OL} />   {/* SW face (shadow) */}
+      <polygon points={pts([S, E, Et, St])} fill="#8a847b" {...OL} />   {/* SE face (lit)    */}
+      <polygon points={pts([Nt, Et, St, Wt])} fill="#9a948b" {...OL} /> {/* battlement top   */}
+      {/* merlons: little blocks along the lit top edge */}
+      {[0.18, 0.5, 0.82].map((t, i) => {
+        const mx = St[0] + (Et[0] - St[0]) * t, my = St[1] + (Et[1] - St[1]) * t;
+        return <rect key={i} x={mx - 1.4} y={my - 4} width={2.8} height={4} fill="#9a948b" stroke="#33271a" strokeWidth={0.4} />;
+      })}
+    </g>
+  );
+}
 
 export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, fill, field, placeId, dragCell, dragValid, onDragMove }: {
   cols: number; rows: number; placed: Placed[];
@@ -225,7 +247,9 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, f
     items.push({
       key: `b${p.gx}-${p.gy}`, y: cyBase,
       el: <g key={`b${p.gx}-${p.gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
-        <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} vary={p.gx * 31 + p.gy * 7 + p.idx} />
+        {p.id === "wall"
+          ? <Wall cx={cx} cy={cyBase} level={p.level} />
+          : <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} vary={p.gx * 31 + p.gy * 7 + p.idx} />}
       </g>,
     });
   }
@@ -282,7 +306,7 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, f
         const col = dragValid ? "#7ad06a" : "#e0604a";
         return <g>
           <polygon points={pts([N, E, S, Wc])} fill={dragValid ? "rgba(122,208,106,0.22)" : "rgba(224,96,74,0.22)"} stroke={col} strokeWidth={2.5} />
-          <g opacity={0.92}><IsoBuilding cx={cx} cyBase={cyBase} id={activeId} level={dragLevel} n={n} /></g>
+          <g opacity={0.92}>{activeId === "wall" ? <Wall cx={cx} cy={cyBase} level={dragLevel} /> : <IsoBuilding cx={cx} cyBase={cyBase} id={activeId} level={dragLevel} n={n} />}</g>
         </g>;
       })()}
       </g>
