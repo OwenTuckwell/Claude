@@ -144,22 +144,33 @@ function tileEdges(cx: number, cy: number) {
   const N = [cx, cy - hh], E = [cx + hw, cy], S = [cx, cy + hh], W = [cx - hw, cy];
   return [[E, S], [S, W], [W, N], [N, E]] as const;
 }
-// one rampart segment (stone face + walkway cap + merlons) along an edge A→B raised by h.
-// Ends are extended a touch so neighbouring segments overlap into a continuous wall.
+// a stone buttress post at a ground corner P, rising a touch above the rampart. Neighbouring
+// walls share the same corner, so their posts coincide → the run reads as one wall with
+// regular buttresses (and free ends look finished, not ragged).
+function post(P: readonly number[], h: number, key: string) {
+  const ph = h + 4, OL = { stroke: "#33271a", strokeWidth: 0.5 };
+  return (
+    <g key={key}>
+      <rect x={P[0] - 2} y={P[1] - ph} width={4} height={ph} fill="url(#wStone)" {...OL} />
+      <rect x={P[0] - 2.4} y={P[1] - ph - 1.6} width={4.8} height={2.2} fill="#b3ada1" {...OL} />
+    </g>
+  );
+}
+// one rampart segment (stone face + walkway cap + merlons) along an edge A→B raised by h,
+// capped at each end by a buttress post so adjacent segments join into a continuous wall.
 function rampart(A: readonly number[], B: readonly number[], h: number, key: string) {
-  const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, ext = 1.05;
-  const Ae = [mx + (A[0] - mx) * ext, my + (A[1] - my) * ext];
-  const Be = [mx + (B[0] - mx) * ext, my + (B[1] - my) * ext];
-  const At = [Ae[0], Ae[1] - h], Bt = [Be[0], Be[1] - h];
+  const At = [A[0], A[1] - h], Bt = [B[0], B[1] - h];
   const OL = { stroke: "#33271a", strokeWidth: 0.6, strokeLinejoin: "round" as const };
   return (
     <g key={key}>
-      <polygon points={pts([Ae, Be, Bt, At])} fill="url(#wStone)" {...OL} />                {/* stone face */}
+      <polygon points={pts([A as number[], B as number[], Bt, At])} fill="url(#wStone)" {...OL} />     {/* stone face */}
       <polygon points={pts([At, Bt, [Bt[0], Bt[1] - 3], [At[0], At[1] - 3]])} fill="#b3ada1" {...OL} /> {/* walkway cap */}
-      {[0.18, 0.5, 0.82].map((t, i) => {                                                     /* merlons */
+      {[0.3, 0.7].map((t, i) => {                                                                       /* merlons */
         const cmx = At[0] + (Bt[0] - At[0]) * t, cmy = At[1] + (Bt[1] - At[1]) * t;
         return <rect key={i} x={cmx - 1.4} y={cmy - 4} width={2.8} height={3.6} fill="#b3ada1" stroke="#33271a" strokeWidth={0.4} />;
       })}
+      {post(A, h, "pa")}
+      {post(B, h, "pb")}
     </g>
   );
 }
