@@ -39,6 +39,8 @@ const SCALE: Record<string, number> = {
   town_hall: 1.14,
   // newer buildings
   vineyard: 1.5,
+  // castle: towers/keep stand tall so the low ramparts run into them
+  tower: 1.18, watchtower: 1.3, gatehouse: 1.1, barbican: 1.15,
 };
 
 interface Cfg { wall: string; wallDark: string; roof: string; roofDark: string; h: number; roofH: number; flag?: boolean; round?: boolean; }
@@ -133,24 +135,30 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
 // A wall sits on ONE edge of its tile (chosen by `rot`: 0:+x 1:+y 2:-x 3:-y) and is drawn as
 // a raised battlemented rampart along that diamond edge. Walls on a shared edge coincide, so
 // laying them around a keep forms a continuous, directional fortress wall. Rotate to aim it.
-const wallH = (level: number) => 16 + Math.min(8, (level - 1) * 2);
+// Low ramparts: towers/keep are the tall high-points, walls the connecting battlements that
+// run into them. Kept short so they don't tower over the turrets.
+const wallH = (level: number) => 10 + Math.min(5, (level - 1) * 1.2);
 // the four diamond edges of a tile, in rot order (+x:E-S  +y:S-W  -x:W-N  -y:N-E)
 function tileEdges(cx: number, cy: number) {
   const hw = TW / 2, hh = TH / 2;
   const N = [cx, cy - hh], E = [cx + hw, cy], S = [cx, cy + hh], W = [cx - hw, cy];
   return [[E, S], [S, W], [W, N], [N, E]] as const;
 }
-// one rampart segment (outer face + cap + merlons) along an edge A→B raised by h
+// one rampart segment (stone face + walkway cap + merlons) along an edge A→B raised by h.
+// Ends are extended a touch so neighbouring segments overlap into a continuous wall.
 function rampart(A: readonly number[], B: readonly number[], h: number, key: string) {
-  const At = [A[0], A[1] - h], Bt = [B[0], B[1] - h];
+  const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2, ext = 1.05;
+  const Ae = [mx + (A[0] - mx) * ext, my + (A[1] - my) * ext];
+  const Be = [mx + (B[0] - mx) * ext, my + (B[1] - my) * ext];
+  const At = [Ae[0], Ae[1] - h], Bt = [Be[0], Be[1] - h];
   const OL = { stroke: "#33271a", strokeWidth: 0.6, strokeLinejoin: "round" as const };
   return (
     <g key={key}>
-      <polygon points={pts([A as number[], B as number[], Bt, At])} fill="#8a847b" {...OL} />
-      <polygon points={pts([At, Bt, [Bt[0], Bt[1] - 2.5], [At[0], At[1] - 2.5]])} fill="#9a948b" {...OL} />
-      {[0.2, 0.5, 0.8].map((t, i) => {
-        const mx = At[0] + (Bt[0] - At[0]) * t, my = At[1] + (Bt[1] - At[1]) * t;
-        return <rect key={i} x={mx - 1.3} y={my - 4.5} width={2.6} height={4} fill="#9a948b" stroke="#33271a" strokeWidth={0.4} />;
+      <polygon points={pts([Ae, Be, Bt, At])} fill="url(#wStone)" {...OL} />                {/* stone face */}
+      <polygon points={pts([At, Bt, [Bt[0], Bt[1] - 3], [At[0], At[1] - 3]])} fill="#b3ada1" {...OL} /> {/* walkway cap */}
+      {[0.18, 0.5, 0.82].map((t, i) => {                                                     /* merlons */
+        const cmx = At[0] + (Bt[0] - At[0]) * t, cmy = At[1] + (Bt[1] - At[1]) * t;
+        return <rect key={i} x={cmx - 1.4} y={cmy - 4} width={2.8} height={3.6} fill="#b3ada1" stroke="#33271a" strokeWidth={0.4} />;
       })}
     </g>
   );
