@@ -162,6 +162,9 @@ export function castleEnclosure(buildings: BuildingInstance[]): number {
     if (b.id === "wall") {
       const [dx, dy] = WALL_DIRS[(((b.rot ?? 0) % 4) + 4) % 4];
       blocked.add(edgeKey(b.gx, b.gy, dx, dy));   // a wall blocks its one rotated edge
+    } else if (b.id === "wall_corner") {
+      const r = (((b.rot ?? 0) % 4) + 4) % 4;       // a corner blocks the two edges r and r+1
+      for (const [dx, dy] of [WALL_DIRS[r], WALL_DIRS[(r + 1) % 4]]) blocked.add(edgeKey(b.gx, b.gy, dx, dy));
     } else {
       const n = fp(b.id);
       for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {

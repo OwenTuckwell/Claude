@@ -133,25 +133,40 @@ function Bush({ cx, cy }: { cx: number; cy: number }) {
 // A wall sits on ONE edge of its tile (chosen by `rot`: 0:+x 1:+y 2:-x 3:-y) and is drawn as
 // a raised battlemented rampart along that diamond edge. Walls on a shared edge coincide, so
 // laying them around a keep forms a continuous, directional fortress wall. Rotate to aim it.
-function Wall({ cx, cy, level, rot = 0 }: { cx: number; cy: number; level: number; rot?: number }) {
-  const h = 16 + Math.min(8, (level - 1) * 2);
+const wallH = (level: number) => 16 + Math.min(8, (level - 1) * 2);
+// the four diamond edges of a tile, in rot order (+x:E-S  +y:S-W  -x:W-N  -y:N-E)
+function tileEdges(cx: number, cy: number) {
   const hw = TW / 2, hh = TH / 2;
   const N = [cx, cy - hh], E = [cx + hw, cy], S = [cx, cy + hh], W = [cx - hw, cy];
-  // grid dir → the diamond edge it shares: +x:E-S  +y:S-W  -x:W-N  -y:N-E
-  const EDGES = [[E, S], [S, W], [W, N], [N, E]] as const;
-  const [A, B] = EDGES[(((rot ?? 0) % 4) + 4) % 4];
+  return [[E, S], [S, W], [W, N], [N, E]] as const;
+}
+// one rampart segment (outer face + cap + merlons) along an edge A→B raised by h
+function rampart(A: readonly number[], B: readonly number[], h: number, key: string) {
   const At = [A[0], A[1] - h], Bt = [B[0], B[1] - h];
   const OL = { stroke: "#33271a", strokeWidth: 0.6, strokeLinejoin: "round" as const };
   return (
-    <g>
-      <polygon points={pts([A, B, Bt, At])} fill="#8a847b" {...OL} />                          {/* outer face */}
-      <polygon points={pts([At, Bt, [Bt[0], Bt[1] - 2.5], [At[0], At[1] - 2.5]])} fill="#9a948b" {...OL} /> {/* cap */}
-      {[0.2, 0.5, 0.8].map((t, i) => {                                                          /* merlons */
+    <g key={key}>
+      <polygon points={pts([A as number[], B as number[], Bt, At])} fill="#8a847b" {...OL} />
+      <polygon points={pts([At, Bt, [Bt[0], Bt[1] - 2.5], [At[0], At[1] - 2.5]])} fill="#9a948b" {...OL} />
+      {[0.2, 0.5, 0.8].map((t, i) => {
         const mx = At[0] + (Bt[0] - At[0]) * t, my = At[1] + (Bt[1] - At[1]) * t;
         return <rect key={i} x={mx - 1.3} y={my - 4.5} width={2.6} height={4} fill="#9a948b" stroke="#33271a" strokeWidth={0.4} />;
       })}
     </g>
   );
+}
+function Wall({ cx, cy, level, rot = 0 }: { cx: number; cy: number; level: number; rot?: number }) {
+  const e = tileEdges(cx, cy)[(((rot ?? 0) % 4) + 4) % 4];
+  return <g>{rampart(e[0], e[1], wallH(level), "w")}</g>;
+}
+// A corner piece spans the TWO edges meeting at one diamond corner, so it turns the wall with
+// no seam. `rot` picks the corner (0:S 1:W 2:N 3:E — the two edges r and r+1).
+function WallCorner({ cx, cy, level, rot = 0 }: { cx: number; cy: number; level: number; rot?: number }) {
+  const edges = tileEdges(cx, cy), r = (((rot ?? 0) % 4) + 4) % 4, h = wallH(level);
+  // draw the more-distant edge first so the nearer one overlaps it cleanly at the shared corner
+  const a = edges[r], b = edges[(r + 1) % 4];
+  const back = a[1][1] <= b[1][1] ? a : b, front = back === a ? b : a;   // higher on screen = farther back
+  return <g>{rampart(back[0], back[1], h, "c0")}{rampart(front[0], front[1], h, "c1")}</g>;
 }
 
 export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, fill, field, placeId, placeRot, dragCell, dragValid, onDragMove }: {
@@ -251,6 +266,8 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, f
       el: <g key={`b${p.gx}-${p.gy}`} style={{ cursor: "pointer" }} onClick={() => onSelect(p.idx)}>
         {p.id === "wall"
           ? <Wall cx={cx} cy={cyBase} level={p.level} rot={p.rot ?? 0} />
+          : p.id === "wall_corner"
+          ? <WallCorner cx={cx} cy={cyBase} level={p.level} rot={p.rot ?? 0} />
           : <IsoBuilding cx={cx} cyBase={cyBase} id={p.id} level={p.level} n={n} vary={p.gx * 31 + p.gy * 7 + p.idx} />}
       </g>,
     });
@@ -308,7 +325,9 @@ export function IsoBoard({ cols, rows, placed, selIdx, onSelect, bg, canPlace, f
         const col = dragValid ? "#7ad06a" : "#e0604a";
         return <g>
           <polygon points={pts([N, E, S, Wc])} fill={dragValid ? "rgba(122,208,106,0.22)" : "rgba(224,96,74,0.22)"} stroke={col} strokeWidth={2.5} />
-          <g opacity={0.92}>{activeId === "wall" ? <Wall cx={cx} cy={cyBase} level={dragLevel} rot={placeRot ?? movingP?.rot ?? 0} /> : <IsoBuilding cx={cx} cyBase={cyBase} id={activeId} level={dragLevel} n={n} />}</g>
+          <g opacity={0.92}>{activeId === "wall" ? <Wall cx={cx} cy={cyBase} level={dragLevel} rot={placeRot ?? movingP?.rot ?? 0} />
+            : activeId === "wall_corner" ? <WallCorner cx={cx} cy={cyBase} level={dragLevel} rot={placeRot ?? movingP?.rot ?? 0} />
+            : <IsoBuilding cx={cx} cyBase={cyBase} id={activeId} level={dragLevel} n={n} />}</g>
         </g>;
       })()}
       </g>

@@ -12,6 +12,8 @@ import { bannerTier, BANNER_RANKS } from "../../sim/renown";
 // The castle as a scenic, designable defence space: lay walls, towers and the keep on the
 // isometric ground; they set home defence which repels AI border raids. Same scene layout
 // and tap-to-manage pop-ups as the village.
+const ROTATABLE = new Set(["wall", "wall_corner"]);   // edge pieces you can rotate
+
 export function CastleTab({ state, mods, dispatch }: TabProps) {
   const [sel, setSel] = useState<number | null>(null);     // selected fortification index
   const [moveMode, setMoveMode] = useState(false);
@@ -97,13 +99,13 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
       <div className="scene-actions">
         {pendingInst
           ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Place here</button>
-              {placeId === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
-              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot{placeId === "wall" ? ", rotate to aim the wall," : ""} then Place.</span></>
+              {ROTATABLE.has(placeId ?? "") && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
+              <span className="scene-hint">Drag your {buildingById[pendingInst.id].name} to a spot{ROTATABLE.has(placeId ?? "") ? ", rotate to aim the wall," : ""} then Place.</span></>
           : moveMode
             ? <><button className="act" disabled={!dragValid} onClick={confirmPlace}>✓ Set here</button>
-                {placeId === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
+                {ROTATABLE.has(placeId ?? "") && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: placeIdx! })}>⟳ Rotate</button>}
                 <button className="ghost" onClick={() => { setMoveMode(false); setDrag(null); }}>Cancel</button>
-                <span className="scene-hint">Drag it where you want it{placeId === "wall" ? " · rotate to aim" : ""}.</span></>
+                <span className="scene-hint">Drag it where you want it{ROTATABLE.has(placeId ?? "") ? " · rotate to aim" : ""}.</span></>
             : <><button className="act" onClick={() => { setBuilding(true); setSel(null); }}>＋ Fortify</button>
                 <span className="scene-hint">Pinch zoom · drag pan · tap to manage</span></>}
       </div>
@@ -128,7 +130,7 @@ export function CastleTab({ state, mods, dispatch }: TabProps) {
                   {!maxed && <div className="cost" style={{ marginBottom: 8 }}>Reinforce → L{next}: {costString(cost)} · {fmtDuration(buildTimeTicks(selDef, next, mods), balance.tickLengthSec)}</div>}
                   <div className="row">
                     <button className="ghost" onClick={() => setMoveMode(true)}>↔ Move</button>
-                    {selInst.id === "wall" && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: sel! })}>⟳ Rotate</button>}
+                    {ROTATABLE.has(selInst.id) && <button className="ghost" onClick={() => dispatch({ type: "rotateBuilding", index: sel! })}>⟳ Rotate</button>}
                     <button className="act" disabled={maxed || !canAfford(state, cost)}
                       onClick={() => dispatch({ type: "build", building: selDef.id, instanceIndex: sel })}>
                       {maxed ? "Max level" : "Reinforce"}
