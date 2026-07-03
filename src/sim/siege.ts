@@ -6,10 +6,22 @@ import { buildingById, troopById } from "./content";
 import { nextRandom } from "./rng";
 import type { Modifiers } from "./effects";
 
+/** Where and how a siege hits a castle — derived from its actual layout (or synthesized by
+ *  difficulty for AI capitals). The attacker storms the weakest perimeter point; the layout
+ *  decides how bloody that is. */
+export interface CastleLayout {
+  enclosure: number;       // 0..1 — how sealed the keep is (scales wall HP)
+  breachName: string;      // what the attackers batter ("Gatehouse", "Stone Wall", …)
+  breachIsGate: boolean;   // gate breach: quicker through, but murder-hole fire
+  towersAtBreach: number;  // towers/watchtowers within 2 tiles of the breach point
+  hasMoat: boolean;        // a moat keeps attackers in the killing field for longer
+}
+
 export interface SiegeDefender {
   garrison: Record<string, number>;
   fortifications: { building: string; level: number }[];
-  enclosure?: number;   // 0..1 — how well the walls seal the keep; scales wall effectiveness
+  enclosure?: number;      // 0..1 — how well the walls seal the keep; scales wall effectiveness
+  layout?: CastleLayout;   // full breach-lane analysis (supersedes bare enclosure when present)
 }
 
 export interface SiegeOutcome {
@@ -90,7 +102,10 @@ export function resolveSiege(
   const attackerStart = counts(atk, m);
   const defenderStart = counts(def, dMods);
 
-  // ---- Stage 1: walls ----
+  // ---- Stage 1: the breach lane ----
+  // The attacker storms the castle's weakest perimeter point; the LAYOUT decides how bloody
+  // the approach is. Gates fall faster but pour murder-hole fire on the column; towers near
+  // the breach rake it; a moat holds the attackers in the killing field for extra rounds.
   let rawFortHP = 0;
   let towerSlots = 0;
   for (const f of defender.fortifications) {
@@ -98,33 +113,46 @@ export function resolveSiege(
     rawFortHP += (bd?.defense?.health ?? 0) * f.level * (1 + dMods.defenseHealthPct);
     towerSlots += (bd?.defense?.garrisonSlots ?? 0) * f.level;
   }
-  // Layout matters: walls only protect to the degree they ENCLOSE the keep. Scattered walls
-  // (or no keep) leave gaps the attackers pour through, so their HP barely counts.
-  const enclosure = defender.enclosure ?? 1;
-  const fortHP = rawFortHP * enclosure;
+  const layout = defender.layout;
+  const enclosure = layout?.enclosure ?? defender.enclosure ?? 1;
+  // gates are the weak point: the effective barrier is thinner through them
+  const fortHP = rawFortHP * enclosure * (layout?.breachIsGate ? 0.85 : 1);
   let breached = true;
   if (fortHP > 0) {
     lines.push(`The defenders man ${Math.round(fortHP)} HP of walls and towers${enclosure < 0.99 ? ` (walls ${Math.round(enclosure * 100)}% enclosing)` : ""}.`);
-    // Siege engines batter the walls.
+    if (layout) lines.push(`The assault falls on the ${layout.breachName}.`);
+    // Siege engines batter the breach point.
     let siegeDmg = 0;
     for (const id of Object.keys(atk.hp)) {
       const t = troopById[id];
       if (t.role === "siege") siegeDmg += counts(atk, m)[id] * effAttack(id, m) * (t.bonusVsFortification ?? 1);
     }
-    // Tower archers fire on the approaching army while the walls stand.
+    // Defensive fire on the column while the barrier stands: tower archers, amplified by
+    // towers standing over the breach and by murder-holes if the breach is a gate.
     const archers = Math.min(defender.garrison["archer"] ?? 0, towerSlots);
-    const towerDmgPerRound = archers * effAttack("archer", dMods) * 1.2;
+    let fireMult = 1.2;
+    const fireNotes: string[] = [];
+    if (layout && layout.towersAtBreach > 0) {
+      fireMult *= 1 + 0.15 * Math.min(4, layout.towersAtBreach);
+      fireNotes.push(`${layout.towersAtBreach} tower(s) rake the breach`);
+    }
+    if (layout?.breachIsGate) { fireMult *= 1.25; fireNotes.push("murder-holes pour fire on the column"); }
+    const towerDmgPerRound = archers * effAttack("archer", dMods) * fireMult;
+    // A moat holds the attackers under fire for longer and fouls the engines' footing.
+    const moatRounds = layout?.hasMoat ? 2 : 0;
+    if (moatRounds > 0) { siegeDmg *= 0.85; fireNotes.push("the moat mires the assault"); }
+    if (fireNotes.length) lines.push(fireNotes.join("; ") + ".");
 
     if (siegeDmg <= 0) {
       breached = false;
       // No siege engines: a few rounds of tower fire, then the assault is repelled.
-      const towerRounds = 4;
+      const towerRounds = 4 + moatRounds;
       applyDamage(atk, towerDmgPerRound * towerRounds * roll(), m);
       lines.push("Without siege engines the army cannot breach the walls — tower archers drive them off.");
     } else {
-      const rounds = Math.max(1, Math.ceil(fortHP / siegeDmg));
+      const rounds = Math.max(1, Math.ceil(fortHP / siegeDmg)) + moatRounds;
       applyDamage(atk, towerDmgPerRound * rounds * roll(), m);
-      lines.push(`Siege engines breach the walls after ${rounds} round(s) under archer fire.`);
+      lines.push(`The ${layout?.breachName ?? "walls"} gives way after ${rounds} round(s) under fire.`);
     }
   }
 

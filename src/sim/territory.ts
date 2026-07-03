@@ -3,7 +3,7 @@
 import { world, factions, factionById, aiById, balance, troopById, buildingById } from "./content";
 import { nextRandom } from "./rng";
 import { archetypeInfoFor, archetypeFor, ARCHETYPE, playerStrengthIndex } from "./rivals";
-import { resolveSiege, type SiegeDefender } from "./siege";
+import { resolveSiege, type SiegeDefender, type CastleLayout } from "./siege";
 import { computeModifiers, emptyModifiers } from "./effects";
 import type { SiegeReport, BuildingInstance } from "./types";
 import type { GameState, ResourceMap } from "./types";
@@ -100,7 +100,7 @@ export function realmInfo(state: GameState): RealmInfo {
   };
 }
 
-export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; enclosure?: number; }
+export interface TileDefender { garrison: Record<string, number>; fortifications: { building: string; level: number }[]; ownerId: string; isCapital: boolean; enclosure?: number; layout?: CastleLayout; }
 
 /** How well an AI capital's walls seal its keep, by difficulty — tougher rivals are
  *  better-fortified, so their wall HP counts for more (mirrors the player's castle
@@ -117,7 +117,7 @@ export function defenderForTile(tileOwner: Record<string, string>, x: number, y:
   const cap = factions.find((f) => f.capital.x === x && f.capital.y === y && !f.isPlayer);
   if (cap && ownerId === cap.id) {
     const v = aiById[cap.id];
-    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true, enclosure: aiEnclosure(cap.difficulty) };
+    return { garrison: grow(Object.fromEntries(v.garrison.map((g) => [g.troop, g.count]))), fortifications: v.fortifications, ownerId, isCapital: true, enclosure: aiEnclosure(cap.difficulty), layout: aiCastleLayout(cap.difficulty, v.fortifications) };
   }
   if (ownerId === "neutral") return { garrison: grow({ spearman: 2 }), fortifications: [], ownerId, isCapital: false };
   const diff = factionById[ownerId]?.difficulty ?? 1;
@@ -147,21 +147,26 @@ function roll(state: GameState): number { const r = nextRandom(state.rngState); 
  *  Pure & deterministic; the siege resolver reads it. */
 const DIRS4 = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
 
-export function castleEnclosure(buildings: BuildingInstance[]): number {
+/** Analyse where and how a siege will hit this castle — from the ACTUAL layout.
+ *  The attacker storms the weakest point of the perimeter: the gatehouse if one guards the
+ *  ring (gates are the natural weak point, but fight back with murder-holes), else the
+ *  feeblest wall stretch. Towers standing near that breach rake the attackers; a moat keeps
+ *  them in the killing field for longer. Returns the combat-facing CastleLayout. */
+export function analyzeCastle(buildings: BuildingInstance[]): CastleLayout {
   const { cols, rows } = balance.castleGrid;
   const fp = (id: string) => buildingById[id]?.footprint ?? 1;
   const solid = new Set<string>();     // cells filled by any fortification (walls included)
   const keepCells = new Set<string>();
-  for (const b of buildings) {
-    if (buildingById[b.id]?.category !== "fortification" || b.gx === undefined || b.gy === undefined) continue;
+  const forts = buildings.filter((b) =>
+    buildingById[b.id]?.category === "fortification" && b.gx !== undefined && b.gy !== undefined);
+  for (const b of forts) {
     const n = fp(b.id);
     for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
-      const k = `${b.gx + dx},${b.gy + dy}`;
+      const k = `${b.gx! + dx},${b.gy! + dy}`;
       solid.add(k);
       if (b.id === "keep") keepCells.add(k);
     }
   }
-  if (keepCells.size === 0) return solid.size > 0 ? 0.4 : 0;   // no stronghold core
   const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
   // flood the "outside" inward from the border through open (non-solid) cells
   const outside = new Set<string>();
@@ -178,29 +183,79 @@ export function castleEnclosure(buildings: BuildingInstance[]): number {
     const [x, y] = stack.pop()!;
     for (const [dx, dy] of DIRS4) enter(x + dx, y + dy);
   }
-  // sealed fraction of the keep's perimeter (adjacent structure, or walled-off interior)
-  let total = 0, sealed = 0;
-  for (const kc of keepCells) {
-    const [x, y] = kc.split(",").map(Number);
-    for (const [dx, dy] of DIRS4) {
-      const nx = x + dx, ny = y + dy, nk = `${nx},${ny}`;
-      if (keepCells.has(nk)) continue;
-      total++;
-      if (!inb(nx, ny)) continue;   // open at the grid edge → not sealed
-      if (solid.has(nk) || !outside.has(nk)) sealed++;
+
+  // enclosure: sealed fraction of the keep's perimeter
+  let enclosure: number;
+  if (keepCells.size === 0) enclosure = solid.size > 0 ? 0.4 : 0;   // no stronghold core
+  else {
+    let total = 0, sealed = 0;
+    for (const kc of keepCells) {
+      const [x, y] = kc.split(",").map(Number);
+      for (const [dx, dy] of DIRS4) {
+        const nx = x + dx, ny = y + dy, nk = `${nx},${ny}`;
+        if (keepCells.has(nk)) continue;
+        total++;
+        if (!inb(nx, ny)) continue;   // open at the grid edge → not sealed
+        if (solid.has(nk) || !outside.has(nk)) sealed++;
+      }
     }
+    enclosure = 0.4 + 0.6 * (total > 0 ? sealed / total : 1);   // keep alone 0.4, ringed 1.0
   }
-  return 0.4 + 0.6 * (total > 0 ? sealed / total : 1);   // keep alone = 0.4, fully ringed = 1.0
+
+  // the breach point: a fortification cell the outside can touch (frontline pieces)
+  const touchesOutside = (b: BuildingInstance): boolean => {
+    const n = fp(b.id);
+    for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++)
+      for (const [ex, ey] of DIRS4) {
+        const nx = b.gx! + dx + ex, ny = b.gy! + dy + ey;
+        if (!inb(nx, ny) || outside.has(`${nx},${ny}`)) return true;
+      }
+    return false;
+  };
+  const frontline = forts.filter((b) => b.id !== "moat" && touchesOutside(b));
+  const gate = frontline.find((b) => b.id === "gatehouse" || b.id === "barbican");
+  const hpOf = (b: BuildingInstance) => (buildingById[b.id]?.defense?.health ?? 0) * b.level;
+  const breach = gate ?? frontline.slice().sort((a, b2) => hpOf(a) - hpOf(b2))[0];
+  const towersAtBreach = breach
+    ? forts.filter((b) => (b.id === "tower" || b.id === "watchtower")
+        && Math.max(Math.abs(b.gx! - breach.gx!), Math.abs(b.gy! - breach.gy!)) <= 2).length
+    : 0;
+  return {
+    enclosure,
+    breachName: breach ? buildingById[breach.id].name : "open ground",
+    breachIsGate: !!gate,
+    towersAtBreach,
+    hasMoat: forts.some((b) => b.id === "moat"),
+  };
 }
 
-/** The player's home defence as a SiegeDefender: standing army + fortifications + enclosure. */
+export function castleEnclosure(buildings: BuildingInstance[]): number {
+  return analyzeCastle(buildings).enclosure;
+}
+
+/** A synthesized layout for AI capitals (they have fortification LISTS, not grids):
+ *  tougher rivals are better-sealed, tower their breach, and dig moats at the top end. */
+export function aiCastleLayout(difficulty: number, fortifications: { building: string; level: number }[]): CastleLayout {
+  const towers = fortifications.filter((f) => f.building === "tower" || f.building === "watchtower").length;
+  return {
+    enclosure: aiEnclosure(difficulty),
+    breachName: difficulty >= 4 ? "Gatehouse" : "Stone Wall",
+    breachIsGate: difficulty >= 4,
+    towersAtBreach: Math.min(3, towers),
+    hasMoat: difficulty >= 5,
+  };
+}
+
+/** The player's home defence as a SiegeDefender: standing army + fortifications + the real
+ *  layout of their castle (enclosure, breach point, tower coverage, moat). */
 function playerAsDefender(state: GameState): SiegeDefender {
   const garrison: Record<string, number> = {};
   for (const [id, c] of Object.entries(state.troops)) if (c > 0) garrison[id] = c;
   const fortifications = state.buildings
     .filter((b) => buildingById[b.id].category === "fortification")
     .map((b) => ({ building: b.id, level: b.level }));
-  return { garrison, fortifications, enclosure: castleEnclosure(state.buildings) };
+  const layout = analyzeCastle(state.buildings);
+  return { garrison, fortifications, enclosure: layout.enclosure, layout };
 }
 
 /** Turn a rival's abstract strength into a concrete attacking army (incl. siege engines

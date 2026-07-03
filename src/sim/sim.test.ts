@@ -5,7 +5,7 @@ import {
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
-import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure, aiEnclosure } from "./territory";
+import { landTiles, key, ownedCount, realmInfo, tileVisibility, scoutRange, castleEnclosure, aiEnclosure, analyzeCastle } from "./territory";
 import { archetypeFor, ARCHETYPE } from "./rivals";
 import { world, factions, balance } from "./content";
 import type { GameState, BuildingInstance } from "./types";
@@ -299,6 +299,43 @@ describe("territory, conquest & rank", () => {
     expect(aiEnclosure(5)).toBeGreaterThan(aiEnclosure(1));
     expect(aiEnclosure(5)).toBeLessThanOrEqual(1);
     expect(aiEnclosure(1)).toBeGreaterThan(0.4);
+  });
+
+  it("analyzeCastle reads the breach lane from the layout", () => {
+    // ring with a gatehouse in the east wall and towers flanking it
+    const ring: BuildingInstance[] = [{ id: "keep", level: 1, gx: 3, gy: 3 }];
+    for (let x = 2; x <= 5; x++) for (let y = 2; y <= 5; y++) {
+      if (!(x === 2 || x === 5 || y === 2 || y === 5)) continue;
+      if (x === 5 && y === 3) ring.push({ id: "gatehouse", level: 1, gx: x, gy: y });
+      else if (x === 5 && (y === 2 || y === 5)) ring.push({ id: "tower", level: 1, gx: x, gy: y });
+      else ring.push({ id: "wall", level: 1, gx: x, gy: y });
+    }
+    const lay = analyzeCastle(ring);
+    expect(lay.breachIsGate).toBe(true);                 // the gate is the natural target
+    expect(lay.breachName).toBe("Gatehouse");
+    expect(lay.towersAtBreach).toBe(2);                  // both flanking towers cover it
+    expect(lay.hasMoat).toBe(false);
+    // no gate → weakest frontline piece (a wall) becomes the breach
+    const noGate = ring.map((b) => b.id === "gatehouse" ? { ...b, id: "wall" } : b);
+    expect(analyzeCastle(noGate).breachIsGate).toBe(false);
+    expect(analyzeCastle(noGate).breachName).toBe("Stone Wall");
+  });
+
+  it("towers over the breach and a moat make the assault bloodier", () => {
+    const mods = computeModifiers(fresh());
+    const army = { swordsman: 40, archer: 20, catapult: 5 };
+    const base = (layout: Partial<import("./siege").CastleLayout>) => resolveSiege(army, {
+      garrison: { spearman: 10, archer: 20 },
+      fortifications: [{ building: "wall", level: 3 }, { building: "tower", level: 2 }],
+      layout: { enclosure: 1, breachName: "Stone Wall", breachIsGate: false, towersAtBreach: 0, hasMoat: false, ...layout },
+    }, mods, 42, computeModifiers(fresh()));
+    const open = base({});
+    const towered = base({ towersAtBreach: 3 });
+    const moated = base({ hasMoat: true });
+    const sum = (r: Record<string, number>) => Object.values(r).reduce((a, c) => a + c, 0);
+    expect(sum(towered.attackerLosses)).toBeGreaterThan(sum(open.attackerLosses));
+    expect(sum(moated.attackerLosses)).toBeGreaterThan(sum(open.attackerLosses));
+    expect(towered.lines.join(" ")).toContain("rake the breach");
   });
 
   it("rivals grow economically over time (AI economy)", () => {
