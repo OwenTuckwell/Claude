@@ -1,7 +1,7 @@
 // Host layer: persistence + the wall-clock → ticks bridge. This is the ONLY place that
 // reads real time; the sim core stays clock-free (docs/03 §3). Versioned JSON save so
 // the same format loads in the future Unity build.
-import { balance } from "../sim/content";
+import { balance, buildingById } from "../sim/content";
 import { SCHEMA_VERSION, advance, createInitialState, placeVillageBuildings, placeCastleBuildings } from "../sim/sim";
 import type { GameState } from "../sim/types";
 import { RESOURCE_IDS } from "../sim/types";
@@ -37,6 +37,11 @@ export function migrate(old: unknown): GameState {
     const level = Math.max(1, Math.min(8, Math.ceil(buildings.length / 3)));
     buildings = [{ id: "town_hall", level }, ...buildings];
   }
+  // v17: walls became auto-connecting solid tiles — retire the wall_corner piece and the
+  // rotation field, and drop any building ids the content no longer knows.
+  buildings = buildings
+    .map((b: { id: string; rot?: number }) => { if (b.id === "wall_corner") b.id = "wall"; delete b.rot; return b; })
+    .filter((b: { id: string }) => !!buildingById[b.id]);
   // re-place everything on the (now footprint-aware) grids so nothing overlaps
   for (const b of buildings) { b.gx = undefined; b.gy = undefined; }
   placeVillageBuildings(buildings); // assign village plots (largest footprints first)

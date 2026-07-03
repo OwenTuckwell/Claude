@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { RESOURCE_IDS } from "./types";
 
-export const SCHEMA_VERSION = 16;  // v16: scouting depth — range limit, scouts can be lost, intel goes stale
+export const SCHEMA_VERSION = 17;  // v17: auto-connecting solid wall tiles (rotation removed; wall_corner retired)
 
 /** The player's Town Hall level — the progression spine that gates building tiers
  *  (Appendix S/T). 0 if (somehow) absent. */
@@ -708,13 +708,6 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
       if (!inst) return fail("No such building.");
       if (!canPlaceAt(s.buildings, cmd.index, inst.id, cmd.gx, cmd.gy)) return fail("That building can't go there.");
       inst.gx = cmd.gx; inst.gy = cmd.gy;
-      return ok();
-    }
-
-    case "rotateBuilding": {
-      const inst = s.buildings[cmd.index];
-      if (!inst) return fail("No such building.");
-      inst.rot = (((inst.rot ?? 0) + 1) % 4);   // cycle the edge a wall/gate sits on
       return ok();
     }
 

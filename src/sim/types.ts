@@ -154,8 +154,7 @@ export interface Faction {
 
 // ---- Mutable game state (serializable; this is the save format) ----
 
-export interface BuildingInstance { id: string; level: number; gx?: number; gy?: number; rot?: number; }
-// rot: for edge pieces (walls/gates), which tile edge they sit on — 0:+x 1:+y 2:-x 3:-y.
+export interface BuildingInstance { id: string; level: number; gx?: number; gy?: number; }
 
 export interface BuildOrder {
   building: string;       // building def id
@@ -242,7 +241,6 @@ export type Command =
   | { type: "scout" }
   | { type: "scoutTile"; x: number; y: number }
   | { type: "moveBuilding"; index: number; gx: number; gy: number }
-  | { type: "rotateBuilding"; index: number }
   | { type: "conquer"; x: number; y: number; army: Record<string, number> };
 
 export interface CommandResult { ok: boolean; error?: string; }

@@ -266,40 +266,33 @@ describe("territory, conquest & rank", () => {
     expect(tileVisibility(stale, explored, 5, 5)).toBe(1);                       // faded two levels
   });
 
-  it("castle enclosure rewards walling the keep in", () => {
-    // 2×2 keep at (3,3)-(4,4); edge walls on the 8 adjacent cells, each rotated to seal the
-    // shared edge with a keep cell (rot 0:+x 1:+y 2:-x 3:-y).
-    const ringed: BuildingInstance[] = [
-      { id: "keep", level: 1, gx: 3, gy: 3 },
-      { id: "wall", level: 1, gx: 2, gy: 3, rot: 0 }, { id: "wall", level: 1, gx: 2, gy: 4, rot: 0 }, // west edges
-      { id: "wall", level: 1, gx: 5, gy: 3, rot: 2 }, { id: "wall", level: 1, gx: 5, gy: 4, rot: 2 }, // east edges
-      { id: "wall", level: 1, gx: 3, gy: 2, rot: 1 }, { id: "wall", level: 1, gx: 4, gy: 2, rot: 1 }, // north edges
-      { id: "wall", level: 1, gx: 3, gy: 5, rot: 3 }, { id: "wall", level: 1, gx: 4, gy: 5, rot: 3 }, // south edges
-    ];
+  it("castle enclosure rewards walling the keep in (walls are solid auto-connecting tiles)", () => {
+    // 2×2 keep at (3,3)-(4,4) inside a full 4×4 ring of wall tiles from (2,2)-(5,5).
+    const ring: BuildingInstance[] = [{ id: "keep", level: 1, gx: 3, gy: 3 }];
+    for (let x = 2; x <= 5; x++) for (let y = 2; y <= 5; y++)
+      if (x === 2 || x === 5 || y === 2 || y === 5) ring.push({ id: "wall", level: 1, gx: x, gy: y });
     const scattered: BuildingInstance[] = [
       { id: "keep", level: 1, gx: 3, gy: 3 },
-      { id: "wall", level: 1, gx: 0, gy: 0, rot: 0 }, { id: "wall", level: 1, gx: 7, gy: 7, rot: 0 },
+      { id: "wall", level: 1, gx: 0, gy: 0 }, { id: "wall", level: 1, gx: 7, gy: 7 },
     ];
-    expect(castleEnclosure(ringed)).toBeGreaterThan(0.95);
-    expect(castleEnclosure(scattered)).toBeLessThan(0.6);
-    expect(castleEnclosure([])).toBe(0);                  // nothing to defend
+    expect(castleEnclosure(ring)).toBeGreaterThan(0.95);        // sealed courtyard
+    expect(castleEnclosure(scattered)).toBeLessThan(0.6);       // scattered walls barely help
+    expect(castleEnclosure([])).toBe(0);                        // nothing to defend
+    // knock a hole in the ring → the outside floods the courtyard and enclosure drops
+    const breached = ring.filter((b) => !(b.id === "wall" && b.gx === 2 && b.gy === 3));
+    expect(castleEnclosure(breached)).toBeLessThan(castleEnclosure(ring));
   });
 
-  it("wall corners seal two edges, closing an outer ring around the keep", () => {
-    // 2×2 keep at (3,3); a 4×4 courtyard wall from (2,2)-(5,5): corners turn the wall, straights
-    // fill the sides. Each piece blocks its OUTWARD edges (corner rot r blocks dirs r and r+1).
-    const ring: BuildingInstance[] = [
-      { id: "keep", level: 1, gx: 3, gy: 3 },
-      { id: "wall_corner", level: 1, gx: 2, gy: 2, rot: 2 }, { id: "wall_corner", level: 1, gx: 5, gy: 2, rot: 3 },
-      { id: "wall_corner", level: 1, gx: 2, gy: 5, rot: 1 }, { id: "wall_corner", level: 1, gx: 5, gy: 5, rot: 0 },
-      { id: "wall", level: 1, gx: 3, gy: 2, rot: 3 }, { id: "wall", level: 1, gx: 4, gy: 2, rot: 3 },  // top
-      { id: "wall", level: 1, gx: 3, gy: 5, rot: 1 }, { id: "wall", level: 1, gx: 4, gy: 5, rot: 1 },  // bottom
-      { id: "wall", level: 1, gx: 2, gy: 3, rot: 2 }, { id: "wall", level: 1, gx: 2, gy: 4, rot: 2 },  // left
-      { id: "wall", level: 1, gx: 5, gy: 3, rot: 0 }, { id: "wall", level: 1, gx: 5, gy: 4, rot: 0 },  // right
-    ];
+  it("towers and gates count as wall segments in the ring", () => {
+    // same ring but with a tower replacing a wall tile and a gatehouse another — still sealed
+    const ring: BuildingInstance[] = [{ id: "keep", level: 1, gx: 3, gy: 3 }];
+    for (let x = 2; x <= 5; x++) for (let y = 2; y <= 5; y++) {
+      if (!(x === 2 || x === 5 || y === 2 || y === 5)) continue;
+      if (x === 2 && y === 2) ring.push({ id: "tower", level: 1, gx: x, gy: y });
+      else if (x === 5 && y === 3) ring.push({ id: "gatehouse", level: 1, gx: x, gy: y });
+      else ring.push({ id: "wall", level: 1, gx: x, gy: y });
+    }
     expect(castleEnclosure(ring)).toBeGreaterThan(0.95);
-    // remove a corner → the ring leaks and enclosure drops
-    expect(castleEnclosure(ring.filter((b) => !(b.id === "wall_corner" && b.gx === 2 && b.gy === 2)))).toBeLessThan(0.95);
   });
 
   it("tougher rival keeps are better enclosed (harder to breach)", () => {

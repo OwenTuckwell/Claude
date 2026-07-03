@@ -140,68 +140,54 @@ export function playerDefensePower(state: GameState): number {
 
 function roll(state: GameState): number { const r = nextRandom(state.rngState); state.rngState = r.state; return r.value; }
 
-/** How well your castle walls SEAL your keep, 0..1. A keep ringed by walls (or tucked in a
- *  grid corner) counts its wall HP in full; a keep with gaps to the outside — or no keep at
- *  all — leaves the walls mostly wasted. Pure & deterministic; the siege resolver reads it. */
-// Grid directions, indexed by an edge piece's `rot`: 0:+x 1:+y 2:-x 3:-y.
-const WALL_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
-/** Canonical key for the edge between a cell and its neighbour (order-independent). */
-function edgeKey(x: number, y: number, dx: number, dy: number): string {
-  const x2 = x + dx, y2 = y + dy;
-  return (x < x2 || (x === x2 && y < y2)) ? `${x},${y}|${x2},${y2}` : `${x2},${y2}|${x},${y}`;
-}
+/** How well your castle walls SEAL your keep, 0..1. Walls are solid TILES that auto-connect:
+ *  every fortification fills its footprint cells and blocks passage. A keep whose perimeter
+ *  is protected (adjacent structure, or interior the outside flood can't reach) counts its
+ *  wall HP in full; gaps to the outside — or no keep — leave the walls mostly wasted.
+ *  Pure & deterministic; the siege resolver reads it. */
+const DIRS4 = [[1, 0], [0, 1], [-1, 0], [0, -1]] as const;
 
 export function castleEnclosure(buildings: BuildingInstance[]): number {
   const { cols, rows } = balance.castleGrid;
   const fp = (id: string) => buildingById[id]?.footprint ?? 1;
-  const blocked = new Set<string>();   // wall EDGES (a wall sits on one tile edge)
-  const solid = new Set<string>();     // cells filled by a structure (tower/gate/keep/moat)
+  const solid = new Set<string>();     // cells filled by any fortification (walls included)
   const keepCells = new Set<string>();
   for (const b of buildings) {
     if (buildingById[b.id]?.category !== "fortification" || b.gx === undefined || b.gy === undefined) continue;
-    if (b.id === "wall") {
-      const [dx, dy] = WALL_DIRS[(((b.rot ?? 0) % 4) + 4) % 4];
-      blocked.add(edgeKey(b.gx, b.gy, dx, dy));   // a wall blocks its one rotated edge
-    } else if (b.id === "wall_corner") {
-      const r = (((b.rot ?? 0) % 4) + 4) % 4;       // a corner blocks the two edges r and r+1
-      for (const [dx, dy] of [WALL_DIRS[r], WALL_DIRS[(r + 1) % 4]]) blocked.add(edgeKey(b.gx, b.gy, dx, dy));
-    } else {
-      const n = fp(b.id);
-      for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
-        const k = `${b.gx + dx},${b.gy + dy}`;
-        solid.add(k);
-        if (b.id === "keep") keepCells.add(k);
-      }
+    const n = fp(b.id);
+    for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) {
+      const k = `${b.gx + dx},${b.gy + dy}`;
+      solid.add(k);
+      if (b.id === "keep") keepCells.add(k);
     }
   }
-  if (keepCells.size === 0) return (blocked.size + solid.size) > 0 ? 0.4 : 0;   // no stronghold core
+  if (keepCells.size === 0) return solid.size > 0 ? 0.4 : 0;   // no stronghold core
   const inb = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
-  // flood the "outside" inward from the border; can't enter solid cells or cross wall edges
+  // flood the "outside" inward from the border through open (non-solid) cells
   const outside = new Set<string>();
   const stack: [number, number][] = [];
-  const enter = (x: number, y: number, fx: number, fy: number) => {
+  const enter = (x: number, y: number) => {
     if (!inb(x, y)) return;
     const k = `${x},${y}`;
     if (outside.has(k) || solid.has(k)) return;
-    if ((fx !== x || fy !== y) && blocked.has(edgeKey(fx, fy, x - fx, y - fy))) return;  // wall on this edge
     outside.add(k); stack.push([x, y]);
   };
-  for (let x = 0; x < cols; x++) { enter(x, 0, x, 0); enter(x, rows - 1, x, rows - 1); }
-  for (let y = 0; y < rows; y++) { enter(0, y, 0, y); enter(cols - 1, y, cols - 1, y); }
+  for (let x = 0; x < cols; x++) { enter(x, 0); enter(x, rows - 1); }
+  for (let y = 0; y < rows; y++) { enter(0, y); enter(cols - 1, y); }
   while (stack.length) {
     const [x, y] = stack.pop()!;
-    for (const [dx, dy] of WALL_DIRS) enter(x + dx, y + dy, x, y);
+    for (const [dx, dy] of DIRS4) enter(x + dx, y + dy);
   }
-  // sealed fraction of the keep's perimeter (wall edge, adjacent structure, or walled-off interior)
+  // sealed fraction of the keep's perimeter (adjacent structure, or walled-off interior)
   let total = 0, sealed = 0;
   for (const kc of keepCells) {
     const [x, y] = kc.split(",").map(Number);
-    for (const [dx, dy] of WALL_DIRS) {
+    for (const [dx, dy] of DIRS4) {
       const nx = x + dx, ny = y + dy, nk = `${nx},${ny}`;
       if (keepCells.has(nk)) continue;
       total++;
       if (!inb(nx, ny)) continue;   // open at the grid edge → not sealed
-      if (solid.has(nk) || blocked.has(edgeKey(x, y, dx, dy)) || !outside.has(nk)) sealed++;
+      if (solid.has(nk) || !outside.has(nk)) sealed++;
     }
   }
   return 0.4 + 0.6 * (total > 0 ? sealed / total : 1);   // keep alone = 0.4, fully ringed = 1.0
