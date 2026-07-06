@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { balance } from "../../sim/content";
-import { storageCaps } from "../../sim/sim";
+import { storageCaps, tapPower } from "../../sim/sim";
 import { RESOURCE_IDS, type ResourceId } from "../../sim/types";
 import type { TabProps } from "../helpers";
 import { RESOURCE_META, fmt } from "../format";
@@ -12,20 +12,31 @@ export function MarketTab({ state, mods, dispatch }: TabProps) {
   const caps = storageCaps(state, mods);
   const buy = balance.market.buyPriceTokens;
   const sell = balance.market.sellPriceTokens;
+  const power = tapPower(state, mods);
+  let marketLv = 0, vineLv = 0;
+  for (const b of state.buildings) {
+    if (b.id === "marketplace") marketLv += b.level;
+    else if (b.id === "vineyard") vineLv += b.level;
+  }
 
   return (
     <div className="list">
       <div className="card" style={{ textAlign: "center" }}>
         <h3>Market stall</h3>
         <div className="muted" style={{ marginBottom: 8 }}>
-          Work the stall to earn trade tokens 🎟️. Tokens buy materials at the market below —
-          the slow, steady way to fund your realm by hand.
+          Work the stall to earn trade tokens 🎟️. Your yield grows with merchant research
+          (Haggling → Trade Guilds → Royal Charter) and with your Marketplaces and Vineyards.
         </div>
         <button className="tap-stall" onPointerDown={() => dispatch({ type: "tap" })}>
-          🎟️ Work the stall &nbsp;(+{balance.market.tokensPerTap})
+          🎟️ Work the stall &nbsp;(+{power})
         </button>
         <div style={{ marginTop: 10, fontSize: 22, fontWeight: 800, color: "var(--gold)" }}>
           🎟️ {fmt(state.resources.token)} tokens
+        </div>
+        <div className="cost" style={{ marginTop: 6 }}>
+          {mods.tapIncomePct > 0 || marketLv + vineLv > 0
+            ? <>Merchant lore +{Math.round(mods.tapIncomePct * 100)}% · buildings +{Math.round((0.10 * marketLv + 0.05 * vineLv) * 100)}% (🏪 L{marketLv}{vineLv ? ` · 🍇 L${vineLv}` : ""})</>
+            : <>Research <b>Haggling</b> (Economy) and raise Marketplaces to grow your tap yield.</>}
         </div>
       </div>
 

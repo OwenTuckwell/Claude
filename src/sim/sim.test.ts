@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advance, applyCommand, createInitialState, netProduction, storageCaps, townHallLevel, placementAllowed,
-  footprint, buildingCells, firstFreeVillageCell,
+  footprint, buildingCells, firstFreeVillageCell, tapPower,
 } from "./sim";
 import { computeModifiers } from "./effects";
 import { resolveSiege } from "./siege";
@@ -179,6 +179,20 @@ describe("market & scouting", () => {
     const r = applyCommand(fresh(), { type: "tap" });
     expect(r.result.ok).toBe(true);
     expect(r.state.resources.token).toBe(1);
+  });
+
+  it("tap yield scales with merchant research and marketplaces (the market coefficient)", () => {
+    const base = fresh();
+    expect(tapPower(base, computeModifiers(base))).toBe(1);   // bare start: 1/tap
+    const merchant: GameState = {
+      ...base,
+      research: { haggling: 5, trade_guilds: 4, royal_charter: 3 },   // +100% +120% +150%
+      buildings: [...base.buildings, { id: "marketplace", level: 8, gx: 0, gy: 5 }, { id: "vineyard", level: 4, gx: 5, gy: 0 }],
+    };
+    const p = tapPower(merchant, computeModifiers(merchant));
+    expect(p).toBeCloseTo(1 * (1 + 3.7) * (1 + 0.8 + 0.2), 1);  // ×4.7 research, ×2 buildings
+    const r = applyCommand(merchant, { type: "tap" });
+    expect(r.state.resources.token).toBeCloseTo(p, 5);           // the tap command pays it out
   });
 
   it("buys resources with tokens and rejects when short", () => {

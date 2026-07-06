@@ -41,7 +41,7 @@ export interface ResearchEffect {
     | "production_pct" | "storage_cap_pct" | "tax_yield_pct" | "build_time_pct"
     | "happiness_flat" | "troop_stat_pct" | "defense_health_pct" | "march_speed_pct"
     | "scout_vision_flat" | "scout_yield_pct" | "unlock_building" | "unlock_troop"
-    | "idle_income_pct";
+    | "idle_income_pct" | "tap_income_pct";
   target: string;       // resource id, building id, troop id, "global", or category
   stat?: string;        // for troop_stat_pct: "attack" | "defense" | "health"
   valuePerRank?: number;

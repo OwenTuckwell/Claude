@@ -80,6 +80,20 @@ export function researchBonus(s: GameState): number {
   return b;
 }
 
+/** Tokens earned per tap of the market stall — the ACTIVE income that scales with your
+ *  realm so clicking stays worthwhile: merchant research multiplies it (Haggling → Trade
+ *  Guilds → Royal Charter), and every Marketplace level (+10%) and Vineyard level (+5%)
+ *  amplifies it further. Rounded to 0.1 for a clean readout. */
+export function tapPower(s: GameState, mods: Modifiers): number {
+  let marketLv = 0, vineLv = 0;
+  for (const b of s.buildings) {
+    if (b.id === "marketplace") marketLv += b.level;
+    else if (b.id === "vineyard") vineLv += b.level;
+  }
+  const raw = balance.market.tokensPerTap * (1 + mods.tapIncomePct) * (1 + 0.10 * marketLv + 0.05 * vineLv);
+  return Math.round(raw * 10) / 10;
+}
+
 // ---- Village layout grid (drag/arrange your home village) ----
 export const villageGrid = () => balance.villageGrid;
 /** Buildings shown on the village grid (fortifications live in the Castle). */
@@ -639,7 +653,7 @@ export function applyCommand(state: GameState, cmd: Command): { state: GameState
     }
 
     case "tap": {
-      s.resources.token += balance.market.tokensPerTap;
+      s.resources.token += tapPower(s, mods);
       return ok();
     }
 
